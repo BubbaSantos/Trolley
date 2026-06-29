@@ -125,7 +125,7 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -194,7 +194,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
         </div>
         <div
           ref={rowRef}
-          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
+          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
           onDoubleClick={e => { if (!e.target.closest('button') && txRef.current === 0) onToggle(item.id, item.checked) }}
@@ -396,6 +396,7 @@ export default function App() {
   })
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
+  const [strikingIds, setStrikingIds] = useState(() => new Set())
 
   const inputRef = useRef(null)
   const channelRef = useRef(null)
@@ -699,9 +700,19 @@ export default function App() {
 
   async function toggleItem(id, checked) {
     haptic(checked ? 8 : [10, 30, 10])
-    setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: !checked } : i); setCachedItems(listCode, next); return next })
-    if (navigator.onLine) await supabase.from('list_items').update({ checked: !checked }).eq('id', id)
-    else enqueue({ type: 'UPDATE', id, data: { checked: !checked } })
+    if (!checked) {
+      setStrikingIds(prev => new Set([...prev, id]))
+      setTimeout(async () => {
+        setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true } : i); setCachedItems(listCode, next); return next })
+        if (navigator.onLine) await supabase.from('list_items').update({ checked: true }).eq('id', id)
+        else enqueue({ type: 'UPDATE', id, data: { checked: true } })
+      }, 700)
+    } else {
+      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false } : i); setCachedItems(listCode, next); return next })
+      if (navigator.onLine) await supabase.from('list_items').update({ checked: false }).eq('id', id)
+      else enqueue({ type: 'UPDATE', id, data: { checked: false } })
+    }
   }
 
   async function deleteItem(id) {
@@ -843,6 +854,7 @@ export default function App() {
         key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem}
         onInfo={openDetail} lastTapRef={lastTapRef}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
+        isStriking={strikingIds.has(item.id)}
       />
     )
   }
@@ -1126,7 +1138,7 @@ export default function App() {
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
-                  <p className="settings-divider-label" style={{ marginTop: '1.25rem' }}>Danger Zone</p>
+                  <p className="settings-divider-label" style={{ marginTop: '1.25rem' }}>Reset</p>
                   {confirming === 'list' ? (
                     <div className="confirm-row">
                       <span className="confirm-label">Clear entire list?</span>
@@ -1175,21 +1187,9 @@ export default function App() {
               )}
               {settingsView === 'categories' && (
                 <>
-                  <p className="settings-section-label">Category Order</p>
-                  <p className="settings-hint">Hold and drag to match your store layout</p>
-                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                    <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
-                      <ul className="cat-order-list">
-                        {categoryOrder.map(catId => {
-                          const cat = getCat(catId)
-                          return cat ? <SortableCatItem key={catId} id={catId} cat={cat} /> : null
-                        })}
-                      </ul>
-                    </SortableContext>
-                  </DndContext>
                   {addingCategory ? (
                     <div className="new-cat-form">
-                      <p className="settings-section-label" style={{ paddingTop: '1.25rem' }}>New Category</p>
+                      <p className="settings-section-label" style={{ paddingTop: '0.25rem' }}>New Category</p>
                       <div className="new-cat-fields">
                         <input type="text" placeholder="🛒" value={newCatIcon}
                           onChange={e => setNewCatIcon(e.target.value)}
@@ -1208,12 +1208,25 @@ export default function App() {
                         <button className="settings-join-btn" onClick={saveNewCategory} disabled={!newCatName.trim()}>Save</button>
                         <button className="settings-create-btn new-cat-cancel" onClick={() => setAddingCategory(false)}>Cancel</button>
                       </div>
+                      <div style={{ margin: '0.75rem 1.25rem 0', height: '1px', background: 'var(--border-subtle)' }} />
                     </div>
                   ) : (
-                    <button className="settings-create-btn" style={{ margin: '0.75rem 1.25rem 0' }} onClick={() => setAddingCategory(true)}>
+                    <button className="settings-create-btn" style={{ margin: '0.75rem 1.25rem 0.25rem' }} onClick={() => setAddingCategory(true)}>
                       + Add Category
                     </button>
                   )}
+                  <p className="settings-section-label" style={{ paddingTop: '0.75rem' }}>Order</p>
+                  <p className="settings-hint">Hold and drag to match your store layout</p>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
+                      <ul className="cat-order-list">
+                        {categoryOrder.map(catId => {
+                          const cat = getCat(catId)
+                          return cat ? <SortableCatItem key={catId} id={catId} cat={cat} /> : null
+                        })}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
                 </>
               )}
             </div>

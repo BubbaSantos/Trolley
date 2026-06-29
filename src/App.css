@@ -423,6 +423,11 @@ header h1 {
   100% { transform: scale(1); }
 }
 
+.item-row-outer {
+  background: var(--bg);
+  padding-bottom: 2px;
+}
+
 .item-row-outer.item-enter {
   animation: item-enter 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -458,6 +463,8 @@ header h1 {
   position: relative;
   border-radius: 0.6rem;
   overflow: hidden;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .swipe-bg {
@@ -501,6 +508,12 @@ header h1 {
 .swipe-row.checked .item-name-group {
   text-decoration: line-through;
   color: var(--text-ghost);
+}
+
+.swipe-row.striking .item-name-group {
+  text-decoration: line-through;
+  opacity: 0.45;
+  transition: opacity 0.2s, text-decoration 0.2s;
 }
 
 .check-btn {
@@ -847,11 +860,11 @@ header h1 {
 
 .settings-action-btn.danger {
   background: transparent;
-  border: 1px solid var(--red);
-  color: var(--red);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
 }
 
-.settings-action-btn.danger:hover { background: rgba(239,68,68,0.08); }
+.settings-action-btn.danger:hover { background: var(--surface-hover); }
 
 .confirm-row {
   display: flex;
@@ -1358,6 +1371,8 @@ header h1 {
 .history-item {
   border-radius: 0.875rem;
   overflow: hidden;
+  isolation: isolate;
+  transform: translateZ(0);
   -webkit-tap-highlight-color: transparent;
 }
 

@@ -12,11 +12,54 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.4.0'
+const VERSION = '2.5.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#94a3b8', '#78716c']
+
+const COMMON_ITEMS = [
+  { name: 'Milk Semi Skimmed',  category: 'milk-cheese' },
+  { name: 'Eggs',               category: 'milk-cheese' },
+  { name: 'Bread White',        category: 'bakery' },
+  { name: 'Butter',             category: 'milk-cheese' },
+  { name: 'Cheddar Cheese',     category: 'milk-cheese' },
+  { name: 'Chicken Breast',     category: 'meat' },
+  { name: 'Beef Mince',         category: 'meat' },
+  { name: 'Bananas',            category: 'fresh-fruit' },
+  { name: 'Apples',             category: 'fresh-fruit' },
+  { name: 'Potatoes',           category: 'fresh-fruit' },
+  { name: 'Onions',             category: 'fresh-fruit' },
+  { name: 'Garlic',             category: 'fresh-fruit' },
+  { name: 'Tomatoes',           category: 'fresh-fruit' },
+  { name: 'Carrots',            category: 'fresh-fruit' },
+  { name: 'Broccoli',           category: 'fresh-fruit' },
+  { name: 'Spinach',            category: 'fresh-fruit' },
+  { name: 'Pasta',              category: 'tins' },
+  { name: 'Rice Basmati',       category: 'tins' },
+  { name: 'Chopped Tomatoes',   category: 'tins' },
+  { name: 'Baked Beans',        category: 'tins' },
+  { name: 'Oil Olive',          category: 'tins' },
+  { name: 'Tea Bags',           category: 'drinks' },
+  { name: 'Coffee Instant',     category: 'drinks' },
+  { name: 'Orange Juice',       category: 'drinks' },
+  { name: 'Yoghurt Natural',    category: 'milk-cheese' },
+  { name: 'Sausages',           category: 'meat' },
+  { name: 'Salmon Fillet',      category: 'meat' },
+  { name: 'Toilet Paper',       category: 'household' },
+  { name: 'Washing Up Liquid',  category: 'household' },
+  { name: 'Laundry Capsules',   category: 'household' },
+  { name: 'Bin Bags',           category: 'household' },
+  { name: 'Kitchen Roll',       category: 'household' },
+  { name: 'Cereal',             category: 'tins' },
+  { name: 'Bread Wholemeal',    category: 'bakery' },
+  { name: 'Lettuce',            category: 'fresh-fruit' },
+  { name: 'Cucumbers',          category: 'fresh-fruit' },
+  { name: 'Mushrooms',          category: 'fresh-fruit' },
+  { name: 'Frozen Peas',        category: 'frozen' },
+  { name: 'Toothpaste',         category: 'other' },
+  { name: 'Shampoo',            category: 'other' },
+]
 
 function getCachedItems(code) {
   try { return JSON.parse(localStorage.getItem(`trolley_items_${code}`) || '[]') } catch { return [] }
@@ -522,7 +565,7 @@ export default function App() {
       ...items.map(i => parseItemName(i.name).name.toLowerCase()),
       ...exclude.map(n => n.toLowerCase()),
     ])
-    return history
+    const histSugs = history
       .filter(h => !onList.has(h.name.toLowerCase()))
       .sort((a, b) => (b.count || 1) - (a.count || 1))
       .slice(0, 8)
@@ -530,6 +573,13 @@ export default function App() {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
         return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
       })
+    if (histSugs.length >= 8) return histSugs
+    const alreadyShown = new Set([...onList, ...histSugs.map(s => s.name.toLowerCase())])
+    const fallback = COMMON_ITEMS
+      .filter(item => !alreadyShown.has(item.name.toLowerCase()))
+      .slice(0, 8 - histSugs.length)
+      .map(item => ({ name: item.name, category: item.category, fromHistory: true, count: 0 }))
+    return [...histSugs, ...fallback]
   }
 
   function handleInputFocus() {
@@ -846,7 +896,11 @@ export default function App() {
             />
             {(suggestions.length > 0 || (input.trim() && suggestions.length === 0)) && (
               <div className="suggestions">
-                {showingHistory && <p className="suggestions-header">Frequently bought</p>}
+                {showingHistory && (
+                  <p className="suggestions-header">
+                    {suggestions.some(s => (s.count || 0) > 0) ? 'Frequently bought' : 'Suggestions'}
+                  </p>
+                )}
                 {suggestions.map(p => (
                   <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
                     <span className="suggestion-name">

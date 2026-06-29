@@ -1302,6 +1302,15 @@ header h1 {
   margin-left: 0.35rem;
 }
 
+.detail-stat-row { cursor: default; }
+.detail-stat-row:hover { background: transparent; }
+.detail-stat-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
 .detail-fav-toggle {
   font-size: 1.25rem;
   color: var(--text-ghost);

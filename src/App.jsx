@@ -1087,12 +1087,22 @@ export default function App() {
               </button>
               {(() => {
                 const { name: cleanName } = parseItemName(detailItem.name)
-                const isFav = history.some(h => h.name.toLowerCase() === cleanName.toLowerCase() && h.is_favourite)
+                const histEntry = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
+                const isFav = histEntry?.is_favourite || false
+                const count = histEntry?.count || 0
                 return (
-                  <button className="detail-cat-row" onClick={() => toggleFavourite(detailItem.name)}>
-                    <span className="detail-cat-label">Favourite</span>
-                    <span className={`detail-fav-toggle${isFav ? ' active' : ''}`}>{isFav ? '★' : '☆'}</span>
-                  </button>
+                  <>
+                    {count > 0 && (
+                      <div className="detail-cat-row detail-stat-row">
+                        <span className="detail-cat-label">Times bought</span>
+                        <span className="detail-stat-value">{count}</span>
+                      </div>
+                    )}
+                    <button className="detail-cat-row" onClick={() => toggleFavourite(detailItem.name)}>
+                      <span className="detail-cat-label">Favourite</span>
+                      <span className={`detail-fav-toggle${isFav ? ' active' : ''}`}>{isFav ? '★' : '☆'}</span>
+                    </button>
+                  </>
                 )
               })()}
             </div>

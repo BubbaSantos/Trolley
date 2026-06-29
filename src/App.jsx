@@ -197,7 +197,6 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
-          onDoubleClick={e => { if (!e.target.closest('button') && txRef.current === 0) onToggle(item.id, item.checked) }}
         >
           <button
             className={`check-btn${item.checked ? ' checked-btn' : ''}`}

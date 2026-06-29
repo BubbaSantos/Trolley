@@ -172,6 +172,56 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   )
 }
 
+function SwipeHistoryItem({ h, onAdd, onDelete, onList }) {
+  const [tx, _setTx] = useState(0)
+  const [animate, setAnimate] = useState(false)
+  const txRef = useRef(0)
+  const rowRef = useRef(null)
+  const onDeleteRef = useRef(onDelete)
+  useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
+  function setTx(v) { txRef.current = v; _setTx(v) }
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    let startX = 0, startY = 0, dir = null, baseX = 0
+    function onStart(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false) }
+    function onMove(e) {
+      const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
+      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
+      if (dir !== 'h') return
+      e.preventDefault()
+      setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
+    }
+    function onEnd() {
+      if (dir !== 'h') return
+      setAnimate(true)
+      const t = txRef.current
+      if (t < -AUTO) { setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }
+      else if (t < -(SNAP / 2)) setTx(-SNAP)
+      else setTx(0)
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchmove', onMove); el.removeEventListener('touchend', onEnd) }
+  }, [h.name])
+
+  return (
+    <li className="history-item swipe-wrapper" style={{ listStyle: 'none', padding: 0 }}>
+      <div className="swipe-bg">
+        <button className="swipe-delete-btn" onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}>Delete</button>
+      </div>
+      <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}${onList ? ' on-list' : ''}`} style={{ transform: `translateX(${tx}px)` }}>
+        <span className="history-name">{h.name}</span>
+        <span className="history-meta">{h.count > 1 ? `×${h.count}` : ''}</span>
+        {onList ? <span className="history-on-list-badge">On list</span>
+          : <button className="history-add-btn" onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
+      </div>
+    </li>
+  )
+}
+
 function SortableCatItem({ id, cat }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
@@ -661,6 +711,13 @@ export default function App() {
     if (navigator.onLine) await supabase.from('list_history').delete().eq('list_code', listCode)
   }
 
+  async function deleteHistoryItem(name) {
+    setHistory(prev => prev.filter(h => h.name !== name))
+    if (navigator.onLine) {
+      await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', name)
+    }
+  }
+
   // --- Item detail sheet ---
   function openDetail(item) {
     const { qty, name: baseName } = parseItemName(item.name)
@@ -865,17 +922,8 @@ export default function App() {
           ) : (
             <ul className="history-list">
               {filteredHistory.map(h => {
-                const cat = getCat(h.category_id)
                 const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
-                return (
-                  <li key={h.name} className={`history-item${onList ? ' on-list' : ''}`}>
-                    <span className="history-cat-icon">{cat?.icon ?? '🛍️'}</span>
-                    <span className="history-name">{h.name}</span>
-                    <span className="history-meta">{h.count > 1 ? `×${h.count}` : ''}</span>
-                    {onList ? <span className="history-on-list-badge">On list</span>
-                      : <button className="history-add-btn" onClick={() => addFromHistory(h)}>+</button>}
-                  </li>
-                )
+                return <SwipeHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList} />
               })}
             </ul>
           )}

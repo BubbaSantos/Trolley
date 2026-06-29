@@ -1354,24 +1354,28 @@ header h1 {
 }
 
 .history-item {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 0.5rem;
+  position: relative;
+  overflow: hidden;
   border-bottom: 1px solid var(--border-subtle);
   -webkit-tap-highlight-color: transparent;
 }
 
 .history-item:last-child { border-bottom: none; }
 
-.history-item.on-list { opacity: 0.45; }
-
-.history-cat-icon {
-  font-size: 1.1rem;
-  flex-shrink: 0;
-  width: 1.5rem;
-  text-align: center;
+.history-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  transition: background 0.1s;
+  position: relative;
+  z-index: 1;
 }
+
+.history-item-row.animate { transition: transform 0.26s cubic-bezier(0.25, 1, 0.5, 1), background 0.1s; }
+
+.history-item-row.on-list { opacity: 0.45; }
 
 .history-name {
   flex: 1;

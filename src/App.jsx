@@ -208,15 +208,17 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList }) {
   }, [h.name])
 
   return (
-    <li className="history-item swipe-wrapper" style={{ listStyle: 'none', padding: 0 }}>
-      <div className="swipe-bg">
-        <button className="swipe-delete-btn" onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}>Delete</button>
-      </div>
-      <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}${onList ? ' on-list' : ''}`} style={{ transform: `translateX(${tx}px)` }}>
-        <span className="history-name">{h.name}</span>
-        <span className="history-meta">{h.count > 1 ? `×${h.count}` : ''}</span>
-        {onList ? <span className="history-on-list-badge">On list</span>
-          : <button className="history-add-btn" onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
+    <li className={`history-item${onList ? ' on-list' : ''}`}>
+      <div className="swipe-wrapper">
+        <div className="swipe-bg">
+          <button className="swipe-delete-btn" onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}>Delete</button>
+        </div>
+        <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}>
+          <span className="history-name">{h.name}</span>
+          <span className="history-meta">{h.count > 1 ? `×${h.count}` : ''}</span>
+          {onList ? <span className="history-on-list-badge">On list</span>
+            : <button className="history-add-btn" onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
+        </div>
       </div>
     </li>
   )

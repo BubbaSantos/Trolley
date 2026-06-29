@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.8.0'
+const VERSION = '2.9.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -125,7 +125,7 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, onFavourite, isFavourite, lastTapRef, isEntering, isExiting, isStriking }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -199,19 +199,14 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, onFavourite, isFavourite,
           onClick={handleClick}
         >
           <button
-            className={`check-btn${item.checked ? ' checked-btn' : ''}`}
+            className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
             onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
           >
-            <span className="checkmark">{item.checked ? '✓' : ''}</span>
+            <span className="checkmark">{item.checked || isStriking ? '✓' : ''}</span>
           </button>
           <span className="item-name-group">
             {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
           </span>
-          <button
-            className={`fav-btn${isFavourite ? ' active' : ''}`}
-            onClick={e => { e.stopPropagation(); onFavourite(item.name) }}
-            aria-label={isFavourite ? 'Unfavourite' : 'Favourite'}
-          >★</button>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>
       </div>
@@ -883,22 +878,22 @@ export default function App() {
   }
 
   const orderedCats = categoryOrder.map(id => getCat(id)).filter(Boolean)
-  const favouriteNames = new Set(history.filter(h => h.is_favourite).map(h => h.name.toLowerCase()))
-  const favouriteItems = items.filter(i => !i.checked && favouriteNames.has(parseItemName(i.name).name.toLowerCase()))
-  const favouriteIds = new Set(favouriteItems.map(i => i.id))
-  const grouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked && !favouriteIds.has(i.id)) })).filter(g => g.items.length > 0)
+  const grouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked) })).filter(g => g.items.length > 0)
   const checkedCount = items.filter(i => i.checked).length
   const checkedSorted = items.filter(i => i.checked).sort((a, b) => (b.checked_at || 0) - (a.checked_at || 0))
   const filteredHistory = history
     .filter(h => !historySearch || h.name.toLowerCase().includes(historySearch.toLowerCase()))
-    .sort((a, b) => (b.count || 1) - (a.count || 1))
+    .sort((a, b) => {
+      if (a.is_favourite && !b.is_favourite) return -1
+      if (!a.is_favourite && b.is_favourite) return 1
+      return (b.count || 1) - (a.count || 1)
+    })
 
   function renderItem(item) {
     return (
       <SwipeItem
         key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem}
-        onInfo={openDetail} onFavourite={toggleFavourite} lastTapRef={lastTapRef}
-        isFavourite={favouriteNames.has(parseItemName(item.name).name.toLowerCase())}
+        onInfo={openDetail} lastTapRef={lastTapRef}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
         isStriking={strikingIds.has(item.id)}
       />
@@ -989,16 +984,6 @@ export default function App() {
           ) : (
             <>
               <div className="items-container">
-                {favouriteItems.length > 0 && (
-                  <section className="category-section favourites-section">
-                    <h2 className="category-heading">
-                      <span className="cat-icon">★</span>
-                      Favourites
-                      <span className="cat-count">{favouriteItems.length}</span>
-                    </h2>
-                    <ul>{favouriteItems.map(renderItem)}</ul>
-                  </section>
-                )}
                 {grouped.map(({ category, items: catItems }) => (
                   <section key={category.id} className="category-section" style={{ '--cat-color': category.color }}>
                     <h2 className="category-heading">
@@ -1086,6 +1071,16 @@ export default function App() {
                 </span>
                 <span className="detail-cat-arrow">›</span>
               </button>
+              {(() => {
+                const { name: cleanName } = parseItemName(detailItem.name)
+                const isFav = history.some(h => h.name.toLowerCase() === cleanName.toLowerCase() && h.is_favourite)
+                return (
+                  <button className="detail-cat-row" onClick={() => toggleFavourite(detailItem.name)}>
+                    <span className="detail-cat-label">Favourite</span>
+                    <span className={`detail-fav-toggle${isFav ? ' active' : ''}`}>{isFav ? '★' : '☆'}</span>
+                  </button>
+                )
+              })()}
             </div>
           </BottomSheet>
         </div>

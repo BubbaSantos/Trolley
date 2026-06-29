@@ -12,7 +12,116 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.4.0'
+const VERSION = '1.5.0'
+
+const SNAP = 80   // px to reveal delete
+const AUTO = 220  // px to auto-delete
+
+function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef }) {
+  const [tx, _setTx] = useState(0)
+  const [animate, setAnimate] = useState(false)
+  const txRef = useRef(0)
+  const rowRef = useRef(null)
+  const onDeleteRef = useRef(onDelete)
+  useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
+
+  function setTx(v) { txRef.current = v; _setTx(v) }
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    let startX = 0, startY = 0, dir = null, baseX = 0
+
+    function onStart(e) {
+      startX = e.touches[0].clientX
+      startY = e.touches[0].clientY
+      dir = null
+      baseX = txRef.current
+      setAnimate(false)
+    }
+
+    function onMove(e) {
+      const dx = e.touches[0].clientX - startX
+      const dy = e.touches[0].clientY - startY
+      if (!dir) {
+        if (Math.abs(dx) > 5 || Math.abs(dy) > 5)
+          dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'
+        return
+      }
+      if (dir !== 'h') return
+      e.preventDefault()
+      setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
+    }
+
+    function onEnd() {
+      if (dir !== 'h') return
+      setAnimate(true)
+      const t = txRef.current
+      if (t < -AUTO) {
+        setTx(-window.innerWidth)
+        setTimeout(() => onDeleteRef.current(item.id), 260)
+      } else if (t < -(SNAP / 2)) {
+        setTx(-SNAP)
+      } else {
+        setTx(0)
+      }
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+    }
+  }, [item.id])
+
+  function handleClick(e) {
+    if (txRef.current !== 0) { setAnimate(true); setTx(0); return }
+    if (e.target.closest('button')) return
+    const now = Date.now()
+    const last = lastTapRef.current[item.id] || 0
+    if (now - last < 400) {
+      lastTapRef.current[item.id] = 0
+      onToggle(item.id, item.checked)
+    } else {
+      lastTapRef.current[item.id] = now
+    }
+  }
+
+  return (
+    <div className="swipe-wrapper">
+      <div className="swipe-bg">
+        <button className="swipe-delete-btn" onClick={() => onDelete(item.id)}>Delete</button>
+      </div>
+      <div
+        ref={rowRef}
+        className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
+        style={{ transform: `translateX(${tx}px)` }}
+        onClick={handleClick}
+        onDoubleClick={e => { if (!e.target.closest('button') && txRef.current === 0) onToggle(item.id, item.checked) }}
+      >
+        <button
+          className={`check-btn${item.checked ? ' checked-btn' : ''}`}
+          onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
+        >
+          <span className="checkmark">{item.checked ? '✓' : ''}</span>
+        </button>
+        <span className="item-name">{item.name}</span>
+        {!item.checked && (
+          <button
+            className="cat-change-btn"
+            onClick={e => { e.stopPropagation(); onPick(item) }}
+            title="Change category"
+          >
+            {getCat(item.category_id)?.icon ?? '🏷️'}
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function SortableCatItem({ id, cat }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -290,20 +399,15 @@ export default function App() {
                 </h2>
                 <ul>
                   {catItems.map(item => (
-                    <li
+                    <SwipeItem
                       key={item.id}
-                      onClick={e => handleRowTap(e, item.id, item.checked)}
-                      onDoubleClick={e => { if (!e.target.closest('button')) toggleItem(item.id, item.checked) }}
-                    >
-                      <button className="check-btn" onClick={() => toggleItem(item.id, item.checked)}>
-                        <span className="checkmark" />
-                      </button>
-                      <span className="item-name">{item.name}</span>
-                      <button className="cat-change-btn" onClick={() => setPickerItem(item)} title="Change category">
-                        {getCat(item.category_id)?.icon ?? '🏷️'}
-                      </button>
-                      <button onClick={() => deleteItem(item.id)} className="delete-btn">✕</button>
-                    </li>
+                      item={item}
+                      onToggle={toggleItem}
+                      onDelete={deleteItem}
+                      onPick={setPickerItem}
+                      getCat={getCat}
+                      lastTapRef={lastTapRef}
+                    />
                   ))}
                 </ul>
               </section>
@@ -325,18 +429,15 @@ export default function App() {
                     </h2>
                     <ul>
                       {catItems.map(item => (
-                        <li
+                        <SwipeItem
                           key={item.id}
-                          className="checked"
-                          onClick={e => handleRowTap(e, item.id, item.checked)}
-                          onDoubleClick={e => { if (!e.target.closest('button')) toggleItem(item.id, item.checked) }}
-                        >
-                          <button className="check-btn checked-btn" onClick={() => toggleItem(item.id, item.checked)}>
-                            <span className="checkmark">✓</span>
-                          </button>
-                          <span className="item-name">{item.name}</span>
-                          <button onClick={() => deleteItem(item.id)} className="delete-btn">✕</button>
-                        </li>
+                          item={item}
+                          onToggle={toggleItem}
+                          onDelete={deleteItem}
+                          onPick={setPickerItem}
+                          getCat={getCat}
+                          lastTapRef={lastTapRef}
+                        />
                       ))}
                     </ul>
                   </section>

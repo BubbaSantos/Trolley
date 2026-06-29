@@ -1161,9 +1161,12 @@ export default function App() {
           <BottomSheet onClose={closeSettings}>
             <div className="sheet-handle" />
             <div className="sheet-header">
-              <div style={{ display: 'flex', alignItems: 'center' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', cursor: settingsView !== 'main' ? 'pointer' : 'default' }}
+                onClick={settingsView !== 'main' ? () => { setSettingsView('main'); setAddingCategory(false) } : undefined}
+              >
                 {settingsView !== 'main' && (
-                  <button className="sheet-back" onClick={() => { setSettingsView('main'); setAddingCategory(false) }}>‹</button>
+                  <span className="sheet-back">‹</span>
                 )}
                 <p className="sheet-title">
                   {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : 'Manage Categories'}

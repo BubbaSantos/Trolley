@@ -701,6 +701,182 @@ header h1 {
 
 .theme-toggle-btn:hover { background: var(--border); }
 
+/* ---- Settings navigation ---- */
+
+.sheet-back {
+  background: transparent;
+  color: var(--accent);
+  font-size: 1.5rem;
+  font-weight: 400;
+  line-height: 1;
+  padding: 0 0.25rem 0 0;
+  transition: opacity 0.15s;
+}
+
+.sheet-back:hover { opacity: 0.7; }
+
+.settings-nav-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  background: transparent;
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  width: 100%;
+  text-align: left;
+  color: var(--text);
+  font-family: inherit;
+}
+
+.settings-nav-item:hover { background: var(--surface-hover); }
+.settings-nav-item:last-child { border-bottom: none; }
+
+.settings-nav-left { display: flex; flex-direction: column; gap: 0.2rem; }
+
+.settings-nav-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-nav-sub {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  font-family: 'Courier New', monospace;
+  letter-spacing: 0.1em;
+}
+
+.settings-nav-arrow {
+  color: var(--text-ghost);
+  font-size: 1.1rem;
+}
+
+/* ---- List code sub-view ---- */
+
+.list-code-card {
+  margin: 1.25rem 1.25rem 0.75rem;
+  padding: 1.25rem 1rem;
+  background: var(--bg);
+  border-radius: 0.875rem;
+  text-align: center;
+  border: 1px solid var(--border-subtle);
+}
+
+.list-code-big {
+  font-size: 2.2rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  font-family: 'Courier New', monospace;
+  color: var(--text);
+  padding-left: 0.22em;
+}
+
+.list-code-hint {
+  font-size: 0.78rem;
+  color: var(--text-faint);
+  margin-top: 0.35rem;
+}
+
+.settings-action-btn {
+  display: block;
+  width: calc(100% - 2.5rem);
+  margin: 0 1.25rem 0.6rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  transition: background 0.15s, opacity 0.15s;
+  font-family: inherit;
+}
+
+.settings-action-btn.danger {
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+}
+
+.settings-action-btn.danger:hover { background: rgba(239,68,68,0.08); }
+
+.settings-divider-label {
+  padding: 1rem 1.25rem 0.4rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.settings-join-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0 1.25rem 0.6rem;
+}
+
+.settings-join-input {
+  flex: 1;
+  padding: 0.7rem 0.875rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-family: 'Courier New', monospace;
+  text-transform: uppercase;
+}
+
+.settings-join-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.settings-join-input::placeholder {
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--text-ghost);
+  font-family: inherit;
+  text-transform: none;
+}
+
+.settings-join-btn {
+  padding: 0.7rem 1rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.settings-join-btn:hover { background: var(--accent-hover); }
+
+.settings-create-btn {
+  display: block;
+  width: calc(100% - 2.5rem);
+  margin: 0 1.25rem 1rem;
+  padding: 0.8rem 1rem;
+  border-radius: 0.75rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  background: var(--surface-hover);
+  border: 1px solid var(--border);
+  color: var(--text);
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.settings-create-btn:hover { background: var(--border); }
+
 .settings-section-label {
   font-size: 0.75rem;
   font-weight: 600;

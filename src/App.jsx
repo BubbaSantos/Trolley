@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.9.0'
+const VERSION = '2.0.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -248,6 +248,8 @@ export default function App() {
   const [tab, setTab] = useState('list')
   const [historySearch, setHistorySearch] = useState('')
   const [history, setHistory] = useState(loadHistory)
+  const [settingsView, setSettingsView] = useState('main')
+  const [settingsJoinCode, setSettingsJoinCode] = useState('')
   const [theme, setTheme] = useState(() => {
     const saved = localStorage.getItem('trolley_theme') || 'dark'
     document.documentElement.setAttribute('data-theme', saved)
@@ -296,6 +298,27 @@ export default function App() {
 
   function toggleTheme() {
     setTheme(t => t === 'dark' ? 'light' : 'dark')
+  }
+
+  function openSettings() {
+    setSettingsView('main')
+    setSettingsOpen(true)
+  }
+
+  function closeSettings() {
+    setSettingsOpen(false)
+    setSettingsView('main')
+    setSettingsJoinCode('')
+  }
+
+  async function switchList(code) {
+    const clean = code.trim().toUpperCase()
+    if (!clean) return
+    closeSettings()
+    localStorage.setItem('trolley_code', clean)
+    listCodeRef.current = clean
+    setListCode(clean)
+    await loadAndSubscribe(clean)
   }
 
   useEffect(() => {
@@ -575,9 +598,7 @@ export default function App() {
         </div>
         <div className="header-right">
           {!online && <span className="offline-badge">Offline</span>}
-          <span className="code-badge">{listCode}</span>
-          <button onClick={() => setSettingsOpen(true)} className="icon-btn" aria-label="Settings">⚙️</button>
-          <button onClick={leaveList} className="leave-btn" aria-label="Leave list">✕</button>
+          <button onClick={openSettings} className="icon-btn" aria-label="Settings">⚙️</button>
         </div>
       </header>
 
@@ -751,32 +772,107 @@ export default function App() {
       )}
 
       {settingsOpen && (
-        <div className="overlay" onClick={() => setSettingsOpen(false)}>
+        <div className="overlay" onClick={closeSettings}>
           <div className="sheet" onClick={e => e.stopPropagation()}>
             <div className="sheet-handle" />
             <div className="sheet-header">
-              <p className="sheet-title">Settings</p>
-              <button onClick={() => setSettingsOpen(false)} className="sheet-close">✕</button>
-            </div>
-            <div className="sheet-body">
-              <div className="settings-row">
-                <span className="settings-row-label">Appearance</span>
-                <button className="theme-toggle-btn" onClick={toggleTheme}>
-                  {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
-                </button>
+              <div style={{ display: 'flex', alignItems: 'center' }}>
+                {settingsView !== 'main' && (
+                  <button className="sheet-back" onClick={() => setSettingsView('main')}>‹</button>
+                )}
+                <p className="sheet-title">
+                  {settingsView === 'main' ? 'Settings'
+                    : settingsView === 'list' ? 'List Code'
+                    : 'Manage Categories'}
+                </p>
               </div>
-              <p className="settings-section-label">Category Order</p>
-              <p className="settings-hint">Hold and drag to match your store layout</p>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
-                  <ul className="cat-order-list">
-                    {categoryOrder.map(catId => {
-                      const cat = getCat(catId)
-                      return cat ? <SortableCatItem key={catId} id={catId} cat={cat} /> : null
-                    })}
-                  </ul>
-                </SortableContext>
-              </DndContext>
+              <button onClick={closeSettings} className="sheet-close">✕</button>
+            </div>
+
+            <div className="sheet-body">
+              {settingsView === 'main' && (
+                <>
+                  <div className="settings-row">
+                    <span className="settings-row-label">Appearance</span>
+                    <button className="theme-toggle-btn" onClick={toggleTheme}>
+                      {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
+                    </button>
+                  </div>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('list')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">List Code</span>
+                      <span className="settings-nav-sub">{listCode}</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('categories')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Manage Categories</span>
+                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>
+                        Drag to reorder
+                      </span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
+                </>
+              )}
+
+              {settingsView === 'list' && (
+                <>
+                  <div className="list-code-card">
+                    <p className="list-code-big">{listCode}</p>
+                    <p className="list-code-hint">Share this code with your partner</p>
+                  </div>
+
+                  <p className="settings-divider-label">Join another list</p>
+                  <div className="settings-join-row">
+                    <input
+                      type="text"
+                      placeholder="Enter 6-letter code"
+                      value={settingsJoinCode}
+                      onChange={e => setSettingsJoinCode(e.target.value.toUpperCase())}
+                      maxLength="6"
+                      className="settings-join-input"
+                      autoCapitalize="characters"
+                      autoComplete="off"
+                    />
+                    <button className="settings-join-btn" onClick={() => switchList(settingsJoinCode)}>
+                      Join
+                    </button>
+                  </div>
+                  <button
+                    className="settings-create-btn"
+                    onClick={async () => { closeSettings(); await createList() }}
+                  >
+                    + Create new list
+                  </button>
+
+                  <p className="settings-divider-label">Leave</p>
+                  <button
+                    className="settings-action-btn danger"
+                    onClick={() => { leaveList(); closeSettings() }}
+                  >
+                    Leave this list
+                  </button>
+                </>
+              )}
+
+              {settingsView === 'categories' && (
+                <>
+                  <p className="settings-section-label">Category Order</p>
+                  <p className="settings-hint">Hold and drag to match your store layout</p>
+                  <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                    <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
+                      <ul className="cat-order-list">
+                        {categoryOrder.map(catId => {
+                          const cat = getCat(catId)
+                          return cat ? <SortableCatItem key={catId} id={catId} cat={cat} /> : null
+                        })}
+                      </ul>
+                    </SortableContext>
+                  </DndContext>
+                </>
+              )}
             </div>
           </div>
         </div>

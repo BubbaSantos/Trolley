@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.3.0'
+const VERSION = '2.4.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -82,7 +82,7 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, animEnabled }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -141,7 +141,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
     : null
 
   return (
-    <div className={`item-row-outer${animEnabled && isEntering ? ' item-enter' : ''}${animEnabled && isExiting ? ' item-exit' : ''}`}>
+    <div className={`item-row-outer${isEntering ? ' item-enter' : ''}${isExiting ? ' item-exit' : ''}`}>
       <div className="swipe-wrapper">
         <div className="swipe-bg">
           <button className="swipe-delete-btn" onClick={() => {
@@ -157,7 +157,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           onDoubleClick={e => { if (!e.target.closest('button') && txRef.current === 0) onToggle(item.id, item.checked) }}
         >
           <button
-            className={`check-btn${item.checked ? ' checked-btn' : ''}${animEnabled ? ' anim' : ''}`}
+            className={`check-btn${item.checked ? ' checked-btn' : ''}`}
             onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
           >
             <span className="checkmark">{item.checked ? '✓' : ''}</span>
@@ -266,10 +266,6 @@ function loadCategoryOrder() {
   return allIds
 }
 
-function loadHistory() {
-  try { return JSON.parse(localStorage.getItem('trolley_history') || '[]') } catch { return [] }
-}
-
 export default function App() {
   const [listCode, setListCode] = useState(null)
   const [inputCode, setInputCode] = useState('')
@@ -289,7 +285,7 @@ export default function App() {
   const [customCategories, setCustomCategories] = useState(getCustomCategories)
   const [tab, setTab] = useState('list')
   const [historySearch, setHistorySearch] = useState('')
-  const [history, setHistory] = useState(loadHistory)
+  const [history, setHistory] = useState([])
   const [settingsView, setSettingsView] = useState('main')
   const [settingsJoinCode, setSettingsJoinCode] = useState('')
   const [addingCategory, setAddingCategory] = useState(false)
@@ -301,7 +297,6 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', saved)
     return saved
   })
-  const [animEnabled, setAnimEnabled] = useState(() => localStorage.getItem('trolley_animations') !== 'off')
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
 
@@ -311,10 +306,12 @@ export default function App() {
   const listCodeRef = useRef(null)
   const locallyAddedIdsRef = useRef(new Set())
   const itemsRef = useRef([])
+  const historyRef = useRef([])
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
   useEffect(() => { itemsRef.current = items }, [items])
+  useEffect(() => { historyRef.current = history }, [history])
 
   const allCategories = [...products.categories, ...customCategories]
   const getCat = (id) => allCategories.find(c => c.id === id)
@@ -341,7 +338,6 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder)) }, [categoryOrder])
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
-  useEffect(() => { localStorage.setItem('trolley_animations', animEnabled ? 'on' : 'off') }, [animEnabled])
 
   function toggleTheme() { setTheme(t => t === 'dark' ? 'light' : 'dark') }
 
@@ -366,15 +362,25 @@ export default function App() {
     prevOnlineRef.current = online
   }, [online])
 
-  function recordHistory(item) {
+  async function recordHistory(item) {
+    const { name: cleanName } = parseItemName(item.name)
+    const current = historyRef.current.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
+    const newEntry = {
+      list_code: listCodeRef.current,
+      name: cleanName,
+      category_id: item.category_id,
+      count: (current?.count || 0) + 1,
+      last_used: new Date().toISOString(),
+    }
     setHistory(prev => {
-      const existing = [...prev]
-      const idx = existing.findIndex(h => h.name.toLowerCase() === item.name.toLowerCase())
-      const entry = { name: item.name, category_id: item.category_id, count: idx >= 0 ? (existing[idx].count || 1) + 1 : 1, lastUsed: new Date().toISOString() }
-      if (idx >= 0) existing[idx] = entry; else existing.push(entry)
-      try { localStorage.setItem('trolley_history', JSON.stringify(existing)) } catch {}
-      return existing
+      const idx = prev.findIndex(h => h.name.toLowerCase() === cleanName.toLowerCase())
+      const next = [...prev]
+      if (idx >= 0) next[idx] = newEntry; else next.push(newEntry)
+      return next
     })
+    if (navigator.onLine) {
+      await supabase.from('list_history').upsert(newEntry, { onConflict: 'list_code,name' })
+    }
   }
 
   async function loadAndSubscribe(code) {
@@ -383,8 +389,12 @@ export default function App() {
     if (cached.length > 0) setItems(cached)
     if (!navigator.onLine) return
     await flushQueue()
-    const { data } = await supabase.from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true })
-    if (data) { setItems(data); setCachedItems(code, data) }
+    const [{ data: itemData }, { data: histData }] = await Promise.all([
+      supabase.from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true }),
+      supabase.from('list_history').select('*').eq('list_code', code),
+    ])
+    if (itemData) { setItems(itemData); setCachedItems(code, itemData) }
+    if (histData) setHistory(histData)
 
     channelRef.current = supabase
       .channel(`list:${code}`)
@@ -411,6 +421,19 @@ export default function App() {
           }, 260)
         }
       })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_history' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          if (payload.new.list_code !== code) return
+          setHistory(prev => {
+            const idx = prev.findIndex(h => h.name.toLowerCase() === payload.new.name.toLowerCase())
+            if (idx >= 0) { const next = [...prev]; next[idx] = payload.new; return next }
+            return [...prev, payload.new]
+          })
+        }
+        if (payload.eventType === 'DELETE') {
+          setHistory(prev => prev.filter(h => h.name !== payload.old.name))
+        }
+      })
       .subscribe()
   }
 
@@ -430,7 +453,7 @@ export default function App() {
   }
 
   function getHistorySuggestions() {
-    const onList = new Set(items.map(i => i.name.toLowerCase()))
+    const onList = new Set(items.map(i => parseItemName(i.name).name.toLowerCase()))
     return history
       .filter(h => !onList.has(h.name.toLowerCase()))
       .sort((a, b) => (b.count || 1) - (a.count || 1))
@@ -585,7 +608,26 @@ export default function App() {
   function leaveList() {
     channelRef.current?.unsubscribe()
     localStorage.removeItem('trolley_code'); listCodeRef.current = null
-    setListCode(null); setItems([]); setInput(''); setSuggestions([])
+    setListCode(null); setItems([]); setHistory([]); setInput(''); setSuggestions([])
+  }
+
+  async function clearList() {
+    const ids = items.map(i => i.id)
+    if (!ids.length) { closeSettings(); return }
+    setExitingIds(prev => new Set([...prev, ...ids]))
+    setTimeout(() => {
+      setExitingIds(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s })
+      setItems([]); setCachedItems(listCode, [])
+    }, 300)
+    closeSettings()
+    if (navigator.onLine) await supabase.from('list_items').delete().eq('list_code', listCode)
+    else ids.forEach(id => enqueue({ type: 'DELETE', id }))
+  }
+
+  async function clearHistory() {
+    setHistory([])
+    closeSettings()
+    if (navigator.onLine) await supabase.from('list_history').delete().eq('list_code', listCode)
   }
 
   // --- Item detail sheet ---
@@ -660,7 +702,7 @@ export default function App() {
       <SwipeItem
         key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem}
         onInfo={openDetail} lastTapRef={lastTapRef}
-        isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)} animEnabled={animEnabled}
+        isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
       />
     )
   }
@@ -793,7 +835,7 @@ export default function App() {
             <ul className="history-list">
               {filteredHistory.map(h => {
                 const cat = getCat(h.category_id)
-                const onList = items.some(i => i.name.toLowerCase() === h.name.toLowerCase() && !i.checked)
+                const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
                 return (
                   <li key={h.name} className={`history-item${onList ? ' on-list' : ''}`}>
                     <span className="history-cat-icon">{cat?.icon ?? '🛍️'}</span>
@@ -935,12 +977,6 @@ export default function App() {
                       {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
                     </button>
                   </div>
-                  <div className="settings-row">
-                    <span className="settings-row-label">Animations</span>
-                    <button className="theme-toggle-btn" onClick={() => setAnimEnabled(v => !v)}>
-                      {animEnabled ? '✨ On' : '⚡ Off'}
-                    </button>
-                  </div>
                   <button className="settings-nav-item" onClick={() => setSettingsView('list')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">List Code</span>
@@ -954,6 +990,13 @@ export default function App() {
                       <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Drag to reorder</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
+                  </button>
+                  <p className="settings-divider-label" style={{ marginTop: '1.25rem' }}>Danger Zone</p>
+                  <button className="settings-action-btn danger" onClick={clearList}>
+                    Clear list
+                  </button>
+                  <button className="settings-action-btn danger" onClick={clearHistory} style={{ marginTop: '0.5rem' }}>
+                    Clear history
                   </button>
                 </>
               )}

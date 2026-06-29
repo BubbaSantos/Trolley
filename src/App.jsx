@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.7.0'
+const VERSION = '1.8.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -36,8 +36,7 @@ function enqueue(op) {
   const q = getQueue(); q.push(op); saveQueue(q)
 }
 
-// --- Custom products (learned from your shopping habits) ---
-// Stored as [{ name, category: categoryId }], separate from built-in products.json
+// --- Custom products (learned from shopping habits) ---
 function getCustomProducts() {
   try { return JSON.parse(localStorage.getItem('trolley_custom_products') || '[]') } catch { return [] }
 }
@@ -50,6 +49,11 @@ function upsertCustomProduct(name, categoryId) {
     existing.push({ name, category: categoryId })
   }
   try { localStorage.setItem('trolley_custom_products', JSON.stringify(existing)) } catch {}
+}
+
+// --- Haptic feedback (Web Vibration API - Android + iOS PWA) ---
+function haptic(pattern = 10) {
+  try { navigator.vibrate?.(pattern) } catch {}
 }
 
 // --- Online status hook ---
@@ -195,7 +199,6 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
-// Replay queued offline operations against Supabase
 async function flushQueue() {
   const q = getQueue()
   if (!q.length) return
@@ -229,6 +232,10 @@ function loadCategoryOrder() {
   return products.categories.map(c => c.id)
 }
 
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem('trolley_history') || '[]') } catch { return [] }
+}
+
 export default function App() {
   const [listCode, setListCode] = useState(null)
   const [inputCode, setInputCode] = useState('')
@@ -238,6 +245,9 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pickerItem, setPickerItem] = useState(null)
   const [categoryOrder, setCategoryOrder] = useState(loadCategoryOrder)
+  const [tab, setTab] = useState('list')
+  const [historySearch, setHistorySearch] = useState('')
+  const [history, setHistory] = useState(loadHistory)
   const inputRef = useRef(null)
   const channelRef = useRef(null)
   const lastTapRef = useRef({})
@@ -274,7 +284,6 @@ export default function App() {
     localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder))
   }, [categoryOrder])
 
-  // Sync when connection is restored
   useEffect(() => {
     if (online && !prevOnlineRef.current && listCodeRef.current) {
       loadAndSubscribe(listCodeRef.current)
@@ -282,16 +291,31 @@ export default function App() {
     prevOnlineRef.current = online
   }, [online])
 
+  function recordHistory(item) {
+    setHistory(prev => {
+      const existing = [...prev]
+      const idx = existing.findIndex(h => h.name.toLowerCase() === item.name.toLowerCase())
+      const entry = {
+        name: item.name,
+        category_id: item.category_id,
+        count: idx >= 0 ? (existing[idx].count || 1) + 1 : 1,
+        lastUsed: new Date().toISOString(),
+      }
+      if (idx >= 0) existing[idx] = entry
+      else existing.push(entry)
+      try { localStorage.setItem('trolley_history', JSON.stringify(existing)) } catch {}
+      return existing
+    })
+  }
+
   async function loadAndSubscribe(code) {
     channelRef.current?.unsubscribe()
 
-    // Show cached data immediately so app works offline
     const cached = getCachedItems(code)
     if (cached.length > 0) setItems(cached)
 
     if (!navigator.onLine) return
 
-    // Send any queued offline changes before fetching
     await flushQueue()
 
     const { data } = await supabase
@@ -309,7 +333,6 @@ export default function App() {
           setItems(prev => {
             let next = prev
             if (payload.eventType === 'INSERT') {
-              // Skip if already present from optimistic update
               if (prev.some(i => i.id === payload.new.id)) return prev
               next = [...prev, payload.new]
             }
@@ -368,12 +391,13 @@ export default function App() {
   }
 
   async function addItem(product) {
+    haptic(15)
     const category = products.categories.find(c => c.id === product.category)
     const newItem = {
       id: crypto.randomUUID(),
       list_code: listCode,
       name: product.name,
-      category: category.name,
+      category: category?.name ?? 'Other',
       category_id: product.category,
       checked: false,
       created_at: new Date().toISOString(),
@@ -388,7 +412,7 @@ export default function App() {
   }
 
   async function addCustomItem(name) {
-    // Only save truly novel items to the learned database (skip if already in built-in products)
+    haptic(15)
     const isBuiltIn = products.products.some(p => p.name.toLowerCase() === name.toLowerCase())
     if (!isBuiltIn) upsertCustomProduct(name, 'other')
 
@@ -410,7 +434,28 @@ export default function App() {
     }
   }
 
+  async function addFromHistory(histItem) {
+    haptic(15)
+    const cat = products.categories.find(c => c.id === histItem.category_id)
+    const newItem = {
+      id: crypto.randomUUID(),
+      list_code: listCode,
+      name: histItem.name,
+      category: cat?.name ?? 'Other',
+      category_id: histItem.category_id ?? 'other',
+      checked: false,
+      created_at: new Date().toISOString(),
+    }
+    setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
+    if (navigator.onLine) {
+      await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
+    } else {
+      enqueue({ type: 'INSERT', data: newItem })
+    }
+  }
+
   async function toggleItem(id, checked) {
+    haptic(checked ? 8 : [10, 30, 10])
     setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: !checked } : i); setCachedItems(listCode, next); return next })
     if (navigator.onLine) {
       await supabase.from('list_items').update({ checked: !checked }).eq('id', id)
@@ -420,6 +465,9 @@ export default function App() {
   }
 
   async function deleteItem(id) {
+    haptic([10, 50, 20])
+    const item = items.find(i => i.id === id)
+    if (item) recordHistory(item)
     setItems(prev => { const next = prev.filter(i => i.id !== id); setCachedItems(listCode, next); return next })
     if (navigator.onLine) {
       await supabase.from('list_items').delete().eq('id', id)
@@ -429,8 +477,10 @@ export default function App() {
   }
 
   async function clearChecked() {
-    const ids = items.filter(i => i.checked).map(i => i.id)
-    if (!ids.length) return
+    const checkedItems = items.filter(i => i.checked)
+    if (!checkedItems.length) return
+    checkedItems.forEach(i => recordHistory(i))
+    const ids = checkedItems.map(i => i.id)
     setItems(prev => { const next = prev.filter(i => !i.checked); setCachedItems(listCode, next); return next })
     if (navigator.onLine) {
       await supabase.from('list_items').delete().in('id', ids)
@@ -472,6 +522,11 @@ export default function App() {
     .map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && i.checked) }))
     .filter(g => g.items.length > 0)
 
+  // History: most recent first, optionally filtered by search
+  const filteredHistory = history
+    .filter(h => !historySearch || h.name.toLowerCase().includes(historySearch.toLowerCase()))
+    .sort((a, b) => new Date(b.lastUsed) - new Date(a.lastUsed))
+
   if (!listCode) {
     return (
       <div className="join-screen">
@@ -512,73 +567,44 @@ export default function App() {
         </div>
       </header>
 
-      <div className="input-section">
-        <input
-          ref={inputRef} type="text" placeholder="Add item..." value={input}
-          onChange={handleInputChange} onKeyDown={handleKeyDown}
-          className="item-input" autoComplete="off"
-        />
-        {suggestions.length > 0 && (
-          <div className="suggestions">
-            {suggestions.map(p => (
-              <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
-                <span className="suggestion-name">{p.name}</span>
-                <span className="suggestion-cat">
-                  {getCat(p.category)?.icon} {getCat(p.category)?.name}
-                </span>
-              </button>
-            ))}
-            {input.trim() && (
-              <button onClick={() => addCustomItem(input.trim())} className="suggestion-item suggestion-custom">
-                <span className="suggestion-name">Add &ldquo;{input.trim()}&rdquo;</span>
-                <span className="suggestion-cat">🛍️ Other</span>
-              </button>
+      {tab === 'list' ? (
+        <>
+          <div className="input-section">
+            <input
+              ref={inputRef} type="text" placeholder="Add item..." value={input}
+              onChange={handleInputChange} onKeyDown={handleKeyDown}
+              className="item-input" autoComplete="off"
+            />
+            {suggestions.length > 0 && (
+              <div className="suggestions">
+                {suggestions.map(p => (
+                  <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
+                    <span className="suggestion-name">{p.name}</span>
+                    <span className="suggestion-cat">
+                      {getCat(p.category)?.icon} {getCat(p.category)?.name}
+                    </span>
+                  </button>
+                ))}
+                {input.trim() && (
+                  <button onClick={() => addCustomItem(input.trim())} className="suggestion-item suggestion-custom">
+                    <span className="suggestion-name">Add &ldquo;{input.trim()}&rdquo;</span>
+                    <span className="suggestion-cat">🛍️ Other</span>
+                  </button>
+                )}
+              </div>
             )}
           </div>
-        )}
-      </div>
 
-      {items.length === 0 ? (
-        <div className="empty-state">
-          <p>Your list is empty</p>
-          <p className="empty-hint">Start typing above to add items</p>
-        </div>
-      ) : (
-        <>
-          <div className="items-container">
-            {grouped.map(({ category, items: catItems }) => (
-              <section key={category.id} className="category-section" style={{ '--cat-color': category.color }}>
-                <h2 className="category-heading">
-                  <span className="cat-icon">{category.icon}</span>
-                  {category.name}
-                  <span className="cat-count">{catItems.length}</span>
-                </h2>
-                <ul>
-                  {catItems.map(item => (
-                    <SwipeItem
-                      key={item.id}
-                      item={item}
-                      onToggle={toggleItem}
-                      onDelete={deleteItem}
-                      onPick={setPickerItem}
-                      getCat={getCat}
-                      lastTapRef={lastTapRef}
-                      swipeEnabled={true}
-                    />
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
-
-          {checkedCount > 0 && (
+          {items.length === 0 ? (
+            <div className="empty-state">
+              <p>Your list is empty</p>
+              <p className="empty-hint">Start typing above to add items</p>
+            </div>
+          ) : (
             <>
-              <button onClick={clearChecked} className="clear-btn">
-                Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
-              </button>
-              <div className="checked-container">
-                {checkedGrouped.map(({ category, items: catItems }) => (
-                  <section key={category.id} className="category-section checked-section" style={{ '--cat-color': category.color }}>
+              <div className="items-container">
+                {grouped.map(({ category, items: catItems }) => (
+                  <section key={category.id} className="category-section" style={{ '--cat-color': category.color }}>
                     <h2 className="category-heading">
                       <span className="cat-icon">{category.icon}</span>
                       {category.name}
@@ -594,14 +620,90 @@ export default function App() {
                           onPick={setPickerItem}
                           getCat={getCat}
                           lastTapRef={lastTapRef}
-                          swipeEnabled={false}
+                          swipeEnabled={true}
                         />
                       ))}
                     </ul>
                   </section>
                 ))}
               </div>
+
+              {checkedCount > 0 && (
+                <>
+                  <button onClick={clearChecked} className="clear-btn">
+                    Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
+                  </button>
+                  <div className="checked-container">
+                    {checkedGrouped.map(({ category, items: catItems }) => (
+                      <section key={category.id} className="category-section checked-section" style={{ '--cat-color': category.color }}>
+                        <h2 className="category-heading">
+                          <span className="cat-icon">{category.icon}</span>
+                          {category.name}
+                          <span className="cat-count">{catItems.length}</span>
+                        </h2>
+                        <ul>
+                          {catItems.map(item => (
+                            <SwipeItem
+                              key={item.id}
+                              item={item}
+                              onToggle={toggleItem}
+                              onDelete={deleteItem}
+                              onPick={setPickerItem}
+                              getCat={getCat}
+                              lastTapRef={lastTapRef}
+                              swipeEnabled={false}
+                            />
+                          ))}
+                        </ul>
+                      </section>
+                    ))}
+                  </div>
+                </>
+              )}
             </>
+          )}
+        </>
+      ) : (
+        <>
+          <div className="input-section">
+            <input
+              type="text"
+              placeholder="Search history..."
+              value={historySearch}
+              onChange={e => setHistorySearch(e.target.value)}
+              className="item-input"
+              autoComplete="off"
+            />
+          </div>
+
+          {filteredHistory.length === 0 ? (
+            <div className="empty-state">
+              <p>{historySearch ? 'No matching items' : 'No history yet'}</p>
+              <p className="empty-hint">
+                {historySearch
+                  ? 'Try a different search'
+                  : 'Items you tick off or delete will appear here'}
+              </p>
+            </div>
+          ) : (
+            <ul className="history-list">
+              {filteredHistory.map(h => {
+                const cat = getCat(h.category_id)
+                const onList = items.some(i => i.name.toLowerCase() === h.name.toLowerCase() && !i.checked)
+                return (
+                  <li key={h.name} className={`history-item${onList ? ' on-list' : ''}`}>
+                    <span className="history-cat-icon">{cat?.icon ?? '🛍️'}</span>
+                    <span className="history-name">{h.name}</span>
+                    <span className="history-meta">{h.count > 1 ? `×${h.count}` : ''}</span>
+                    {onList ? (
+                      <span className="history-on-list-badge">On list</span>
+                    ) : (
+                      <button className="history-add-btn" onClick={() => addFromHistory(h)}>+</button>
+                    )}
+                  </li>
+                )
+              })}
+            </ul>
           )}
         </>
       )}
@@ -659,6 +761,17 @@ export default function App() {
           </div>
         </div>
       )}
+
+      <nav className="tab-bar">
+        <button className={`tab-btn${tab === 'list' ? ' active' : ''}`} onClick={() => setTab('list')}>
+          <span className="tab-icon">🛒</span>
+          <span className="tab-label">List</span>
+        </button>
+        <button className={`tab-btn${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>
+          <span className="tab-icon">🕐</span>
+          <span className="tab-label">History</span>
+        </button>
+      </nav>
     </div>
   )
 }

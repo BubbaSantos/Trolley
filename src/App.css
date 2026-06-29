@@ -1412,13 +1412,10 @@ header h1 {
   color: var(--text);
 }
 
-.history-meta {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--text-ghost);
-  opacity: 0.6;
-  min-width: 1.75rem;
-  text-align: right;
+.history-fav {
+  font-size: 0.85rem;
+  color: #f59e0b;
+  flex-shrink: 0;
 }
 
 .history-add-btn {

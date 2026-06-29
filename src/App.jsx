@@ -257,7 +257,7 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList }) {
         </div>
         <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}>
           <span className="history-name">{h.name}</span>
-          <span className="history-meta">{h.count > 1 ? `×${h.count}` : ''}</span>
+          {h.is_favourite && <span className="history-fav">★</span>}
           {onList ? <span className="history-on-list-badge">On list</span>
             : <button className="history-add-btn" onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
         </div>

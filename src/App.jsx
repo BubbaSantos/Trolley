@@ -1,9 +1,33 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
+import {
+  DndContext, closestCenter, PointerSensor, TouchSensor,
+  KeyboardSensor, useSensor, useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, arrayMove,
+  sortableKeyboardCoordinates, useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.1.0'
+const VERSION = '1.2.0'
+
+function SortableCatItem({ id, cat }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <li
+      ref={setNodeRef}
+      className={`cat-order-item${isDragging ? ' dragging' : ''}`}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+    >
+      <span className="drag-handle" {...attributes} {...listeners}>⠿</span>
+      <span className="cat-order-icon">{cat.icon}</span>
+      <span className="cat-order-name">{cat.name}</span>
+    </li>
+  )
+}
 
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
@@ -35,6 +59,22 @@ export default function App() {
   const inputRef = useRef(null)
   const channelRef = useRef(null)
   const lastTapRef = useRef({})
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  function handleDragEnd({ active, over }) {
+    if (over && active.id !== over.id) {
+      setCategoryOrder(prev => {
+        const oldIndex = prev.indexOf(active.id)
+        const newIndex = prev.indexOf(over.id)
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
+  }
 
   useEffect(() => {
     const saved = localStorage.getItem('trolley_code')
@@ -137,18 +177,6 @@ export default function App() {
     const cat = products.categories.find(c => c.id === newCatId)
     await supabase.from('list_items').update({ category: cat.name, category_id: newCatId }).eq('id', itemId)
     setPickerItem(null)
-  }
-
-  function moveCat(id, dir) {
-    setCategoryOrder(prev => {
-      const idx = prev.indexOf(id)
-      if (dir === 'up' && idx === 0) return prev
-      if (dir === 'down' && idx === prev.length - 1) return prev
-      const next = [...prev]
-      const swap = dir === 'up' ? idx - 1 : idx + 1
-      ;[next[idx], next[swap]] = [next[swap], next[idx]]
-      return next
-    })
   }
 
   function handleRowTap(e, id, checked) {
@@ -332,33 +360,17 @@ export default function App() {
             </div>
             <div className="sheet-body">
               <p className="settings-section-label">Category Order</p>
-              <p className="settings-hint">Drag to match your store layout</p>
-              <ul className="cat-order-list">
-                {categoryOrder.map((catId, idx) => {
-                  const cat = getCat(catId)
-                  if (!cat) return null
-                  return (
-                    <li key={catId} className="cat-order-item">
-                      <span className="cat-order-icon">{cat.icon}</span>
-                      <span className="cat-order-name">{cat.name}</span>
-                      <div className="order-btns">
-                        <button
-                          className="order-btn"
-                          onClick={() => moveCat(catId, 'up')}
-                          disabled={idx === 0}
-                          aria-label="Move up"
-                        >▲</button>
-                        <button
-                          className="order-btn"
-                          onClick={() => moveCat(catId, 'down')}
-                          disabled={idx === categoryOrder.length - 1}
-                          aria-label="Move down"
-                        >▼</button>
-                      </div>
-                    </li>
-                  )
-                })}
-              </ul>
+              <p className="settings-hint">Hold and drag to match your store layout</p>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={categoryOrder} strategy={verticalListSortingStrategy}>
+                  <ul className="cat-order-list">
+                    {categoryOrder.map(catId => {
+                      const cat = getCat(catId)
+                      return cat ? <SortableCatItem key={catId} id={catId} cat={cat} /> : null
+                    })}
+                  </ul>
+                </SortableContext>
+              </DndContext>
             </div>
           </div>
         </div>

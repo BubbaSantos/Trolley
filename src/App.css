@@ -609,13 +609,28 @@ header h1 {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  padding: 0.65rem 1.25rem;
+  padding: 0.7rem 1.25rem;
   border-bottom: 1px solid #0f172a;
   transition: background 0.1s;
+  touch-action: none;
 }
 
 .cat-order-item:last-child { border-bottom: none; }
 .cat-order-item:hover { background: #253347; }
+.cat-order-item.dragging { background: #253347; z-index: 999; }
+
+.drag-handle {
+  color: #475569;
+  font-size: 1.1rem;
+  cursor: grab;
+  padding: 0.25rem;
+  touch-action: none;
+  user-select: none;
+  flex-shrink: 0;
+  line-height: 1;
+}
+
+.drag-handle:active { cursor: grabbing; color: #94a3b8; }
 
 .cat-order-icon { font-size: 1.1rem; flex-shrink: 0; }
 
@@ -625,28 +640,3 @@ header h1 {
   color: #cbd5e1;
   font-weight: 500;
 }
-
-.order-btns {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.order-btn {
-  background: #334155;
-  color: #94a3b8;
-  border: none;
-  border-radius: 0.25rem;
-  width: 1.75rem;
-  height: 1.25rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.6rem;
-  cursor: pointer;
-  transition: background 0.1s, color 0.1s;
-  line-height: 1;
-}
-
-.order-btn:hover:not(:disabled) { background: #6366f1; color: white; }
-.order-btn:disabled { opacity: 0.25; cursor: default; }

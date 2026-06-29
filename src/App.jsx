@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.6.0'
+const VERSION = '2.7.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -406,6 +406,7 @@ export default function App() {
   const itemsRef = useRef([])
   const historyRef = useRef([])
   const keepSuggestionsRef = useRef(false)
+  const strikeTimerRef = useRef({})
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
@@ -699,17 +700,25 @@ export default function App() {
   }
 
   async function toggleItem(id, checked) {
+    if (strikingIds.has(id)) {
+      clearTimeout(strikeTimerRef.current[id])
+      delete strikeTimerRef.current[id]
+      setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+      return
+    }
     haptic(checked ? 8 : [10, 30, 10])
     if (!checked) {
       setStrikingIds(prev => new Set([...prev, id]))
-      setTimeout(async () => {
+      strikeTimerRef.current[id] = setTimeout(async () => {
+        delete strikeTimerRef.current[id]
         setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
-        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true } : i); setCachedItems(listCode, next); return next })
+        const now = Date.now()
+        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now } : i); setCachedItems(listCode, next); return next })
         if (navigator.onLine) await supabase.from('list_items').update({ checked: true }).eq('id', id)
         else enqueue({ type: 'UPDATE', id, data: { checked: true } })
       }, 700)
     } else {
-      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false } : i); setCachedItems(listCode, next); return next })
+      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null } : i); setCachedItems(listCode, next); return next })
       if (navigator.onLine) await supabase.from('list_items').update({ checked: false }).eq('id', id)
       else enqueue({ type: 'UPDATE', id, data: { checked: false } })
     }
@@ -843,7 +852,7 @@ export default function App() {
   const orderedCats = categoryOrder.map(id => getCat(id)).filter(Boolean)
   const grouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked) })).filter(g => g.items.length > 0)
   const checkedCount = items.filter(i => i.checked).length
-  const checkedGrouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && i.checked) })).filter(g => g.items.length > 0)
+  const checkedSorted = items.filter(i => i.checked).sort((a, b) => (b.checked_at || 0) - (a.checked_at || 0))
   const filteredHistory = history
     .filter(h => !historySearch || h.name.toLowerCase().includes(historySearch.toLowerCase()))
     .sort((a, b) => (b.count || 1) - (a.count || 1))
@@ -960,16 +969,7 @@ export default function App() {
                     Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
                   </button>
                   <div className="checked-container">
-                    {checkedGrouped.map(({ category, items: catItems }) => (
-                      <section key={category.id} className="category-section checked-section" style={{ '--cat-color': category.color }}>
-                        <h2 className="category-heading">
-                          <span className="cat-icon">{category.icon}</span>
-                          {category.name}
-                          <span className="cat-count">{catItems.length}</span>
-                        </h2>
-                        <ul>{catItems.map(renderItem)}</ul>
-                      </section>
-                    ))}
+                    <ul>{checkedSorted.map(renderItem)}</ul>
                   </div>
                 </>
               )}

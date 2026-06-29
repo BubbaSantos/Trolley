@@ -426,6 +426,8 @@ header h1 {
 .item-row-outer {
   background: var(--bg);
   padding-bottom: 2px;
+  isolation: isolate;
+  transform: translateZ(0);
 }
 
 .item-row-outer.item-enter {

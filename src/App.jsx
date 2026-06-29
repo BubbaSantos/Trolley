@@ -309,6 +309,7 @@ export default function App() {
   const locallyAddedIdsRef = useRef(new Set())
   const itemsRef = useRef([])
   const historyRef = useRef([])
+  const keepSuggestionsRef = useRef(false)
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
@@ -464,8 +465,11 @@ export default function App() {
     await loadAndSubscribe(code)
   }
 
-  function getHistorySuggestions() {
-    const onList = new Set(items.map(i => parseItemName(i.name).name.toLowerCase()))
+  function getHistorySuggestions(exclude = []) {
+    const onList = new Set([
+      ...items.map(i => parseItemName(i.name).name.toLowerCase()),
+      ...exclude.map(n => n.toLowerCase()),
+    ])
     return history
       .filter(h => !onList.has(h.name.toLowerCase()))
       .sort((a, b) => (b.count || 1) - (a.count || 1))
@@ -478,11 +482,17 @@ export default function App() {
 
   function handleInputFocus() {
     if (input.length >= 2) return
+    if (suggestions.length > 0 && suggestions[0]?.fromHistory) return
     const sug = getHistorySuggestions()
     if (sug.length > 0) setSuggestions(sug)
   }
 
-  function handleInputBlur() { setTimeout(() => setSuggestions([]), 150) }
+  function handleInputBlur() {
+    setTimeout(() => {
+      if (keepSuggestionsRef.current) { keepSuggestionsRef.current = false; return }
+      setSuggestions([])
+    }, 150)
+  }
 
   function handleInputChange(e) {
     const value = e.target.value
@@ -527,7 +537,16 @@ export default function App() {
     }
     const cat = allCategories.find(c => c.id === catId)
     const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString() }
-    setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
+    if (product.fromHistory) {
+      keepSuggestionsRef.current = true
+      const refreshed = getHistorySuggestions([product.name])
+      setSuggestions(refreshed)
+      setInput('')
+      setInputQty(null)
+      inputRef.current?.focus()
+    } else {
+      setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
+    }
     await doAddItem(newItem)
   }
 

@@ -162,8 +162,9 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           >
             <span className="checkmark">{item.checked ? '✓' : ''}</span>
           </button>
-          <span className="item-name">{displayName}</span>
-          {displayQty && <span className="item-qty">{displayQty}</span>}
+          <span className="item-name-group">
+            {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+          </span>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>
       </div>

@@ -12,12 +12,45 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.5.0'
+const VERSION = '1.6.0'
+const SNAP = 80
+const AUTO = 220
+const QUEUE_KEY = 'trolley_queue'
 
-const SNAP = 80   // px to reveal delete
-const AUTO = 220  // px to auto-delete
+// --- Local cache ---
+function getCachedItems(code) {
+  try { return JSON.parse(localStorage.getItem(`trolley_items_${code}`) || '[]') } catch { return [] }
+}
+function setCachedItems(code, items) {
+  try { localStorage.setItem(`trolley_items_${code}`, JSON.stringify(items)) } catch {}
+}
 
-function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef }) {
+// --- Offline queue ---
+function getQueue() {
+  try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') } catch { return [] }
+}
+function saveQueue(q) {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)) } catch {}
+}
+function enqueue(op) {
+  const q = getQueue(); q.push(op); saveQueue(q)
+}
+
+// --- Online status hook ---
+function useOnlineStatus() {
+  const [online, setOnline] = useState(navigator.onLine)
+  useEffect(() => {
+    const on = () => setOnline(true)
+    const off = () => setOnline(false)
+    window.addEventListener('online', on)
+    window.addEventListener('offline', off)
+    return () => { window.removeEventListener('online', on); window.removeEventListener('offline', off) }
+  }, [])
+  return online
+}
+
+// swipeEnabled=false for checked items: no red bg, no swipe gesture
+function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef, swipeEnabled }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -28,6 +61,7 @@ function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef }) {
   function setTx(v) { txRef.current = v; _setTx(v) }
 
   useEffect(() => {
+    if (!swipeEnabled) return
     const el = rowRef.current
     if (!el) return
     let startX = 0, startY = 0, dir = null, baseX = 0
@@ -75,7 +109,7 @@ function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef }) {
       el.removeEventListener('touchmove', onMove)
       el.removeEventListener('touchend', onEnd)
     }
-  }, [item.id])
+  }, [item.id, swipeEnabled])
 
   function handleClick(e) {
     if (txRef.current !== 0) { setAnimate(true); setTx(0); return }
@@ -92,9 +126,11 @@ function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef }) {
 
   return (
     <div className="swipe-wrapper">
-      <div className="swipe-bg">
-        <button className="swipe-delete-btn" onClick={() => onDelete(item.id)}>Delete</button>
-      </div>
+      {swipeEnabled && (
+        <div className="swipe-bg">
+          <button className="swipe-delete-btn" onClick={() => onDelete(item.id)}>Delete</button>
+        </div>
+      )}
       <div
         ref={rowRef}
         className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
@@ -143,6 +179,27 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
+// Replay queued offline operations against Supabase
+async function flushQueue() {
+  const q = getQueue()
+  if (!q.length) return
+  const failed = []
+  for (const op of q) {
+    try {
+      if (op.type === 'INSERT') {
+        await supabase.from('list_items').upsert(op.data, { onConflict: 'id' })
+      } else if (op.type === 'UPDATE') {
+        await supabase.from('list_items').update(op.data).eq('id', op.id)
+      } else if (op.type === 'DELETE') {
+        await supabase.from('list_items').delete().eq('id', op.id)
+      }
+    } catch {
+      failed.push(op)
+    }
+  }
+  saveQueue(failed)
+}
+
 function loadCategoryOrder() {
   try {
     const saved = localStorage.getItem('trolley_cat_order')
@@ -168,6 +225,9 @@ export default function App() {
   const inputRef = useRef(null)
   const channelRef = useRef(null)
   const lastTapRef = useRef({})
+  const listCodeRef = useRef(null)
+  const online = useOnlineStatus()
+  const prevOnlineRef = useRef(true)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -186,7 +246,11 @@ export default function App() {
 
   useEffect(() => {
     const saved = localStorage.getItem('trolley_code')
-    if (saved) { setListCode(saved); loadAndSubscribe(saved) }
+    if (saved) {
+      setListCode(saved)
+      listCodeRef.current = saved
+      loadAndSubscribe(saved)
+    }
     return () => channelRef.current?.unsubscribe()
   }, [])
 
@@ -194,20 +258,49 @@ export default function App() {
     localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder))
   }, [categoryOrder])
 
+  // Sync when connection is restored
+  useEffect(() => {
+    if (online && !prevOnlineRef.current && listCodeRef.current) {
+      loadAndSubscribe(listCodeRef.current)
+    }
+    prevOnlineRef.current = online
+  }, [online])
+
   async function loadAndSubscribe(code) {
     channelRef.current?.unsubscribe()
+
+    // Show cached data immediately so app works offline
+    const cached = getCachedItems(code)
+    if (cached.length > 0) setItems(cached)
+
+    if (!navigator.onLine) return
+
+    // Send any queued offline changes before fetching
+    await flushQueue()
+
     const { data } = await supabase
       .from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true })
-    setItems(data || [])
+
+    if (data) {
+      setItems(data)
+      setCachedItems(code, data)
+    }
+
     channelRef.current = supabase
       .channel(`list:${code}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items', filter: `list_code=eq.${code}` },
         (payload) => {
           setItems(prev => {
-            if (payload.eventType === 'INSERT') return [...prev, payload.new]
-            if (payload.eventType === 'UPDATE') return prev.map(i => i.id === payload.new.id ? payload.new : i)
-            if (payload.eventType === 'DELETE') return prev.filter(i => i.id !== payload.old.id)
-            return prev
+            let next = prev
+            if (payload.eventType === 'INSERT') {
+              // Skip if already present from optimistic update
+              if (prev.some(i => i.id === payload.new.id)) return prev
+              next = [...prev, payload.new]
+            }
+            if (payload.eventType === 'UPDATE') next = prev.map(i => i.id === payload.new.id ? payload.new : i)
+            if (payload.eventType === 'DELETE') next = prev.filter(i => i.id !== payload.old.id)
+            setCachedItems(code, next)
+            return next
           })
         })
       .subscribe()
@@ -218,6 +311,7 @@ export default function App() {
     const code = inputCode.trim().toUpperCase()
     if (!code) return
     localStorage.setItem('trolley_code', code)
+    listCodeRef.current = code
     setListCode(code)
     await loadAndSubscribe(code)
     setInputCode('')
@@ -225,8 +319,9 @@ export default function App() {
 
   async function createList() {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-    await supabase.from('lists').insert({ code })
+    if (navigator.onLine) await supabase.from('lists').insert({ code })
     localStorage.setItem('trolley_code', code)
+    listCodeRef.current = code
     setListCode(code)
     await loadAndSubscribe(code)
   }
@@ -252,56 +347,88 @@ export default function App() {
 
   async function addItem(product) {
     const category = products.categories.find(c => c.id === product.category)
-    await supabase.from('list_items').insert({
-      list_code: listCode, name: product.name,
-      category: category.name, category_id: product.category, checked: false,
-    })
+    const newItem = {
+      id: crypto.randomUUID(),
+      list_code: listCode,
+      name: product.name,
+      category: category.name,
+      category_id: product.category,
+      checked: false,
+      created_at: new Date().toISOString(),
+    }
+    setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
     setInput(''); setSuggestions([]); inputRef.current?.focus()
+    if (navigator.onLine) {
+      await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
+    } else {
+      enqueue({ type: 'INSERT', data: newItem })
+    }
   }
 
   async function addCustomItem(name) {
-    await supabase.from('list_items').insert({
-      list_code: listCode, name,
-      category: 'Other', category_id: 'other', checked: false,
-    })
+    const newItem = {
+      id: crypto.randomUUID(),
+      list_code: listCode,
+      name,
+      category: 'Other',
+      category_id: 'other',
+      checked: false,
+      created_at: new Date().toISOString(),
+    }
+    setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
     setInput(''); setSuggestions([]); inputRef.current?.focus()
+    if (navigator.onLine) {
+      await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
+    } else {
+      enqueue({ type: 'INSERT', data: newItem })
+    }
   }
 
   async function toggleItem(id, checked) {
-    await supabase.from('list_items').update({ checked: !checked }).eq('id', id)
+    setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: !checked } : i); setCachedItems(listCode, next); return next })
+    if (navigator.onLine) {
+      await supabase.from('list_items').update({ checked: !checked }).eq('id', id)
+    } else {
+      enqueue({ type: 'UPDATE', id, data: { checked: !checked } })
+    }
   }
 
   async function deleteItem(id) {
-    await supabase.from('list_items').delete().eq('id', id)
+    setItems(prev => { const next = prev.filter(i => i.id !== id); setCachedItems(listCode, next); return next })
+    if (navigator.onLine) {
+      await supabase.from('list_items').delete().eq('id', id)
+    } else {
+      enqueue({ type: 'DELETE', id })
+    }
   }
 
   async function clearChecked() {
     const ids = items.filter(i => i.checked).map(i => i.id)
     if (!ids.length) return
-    await supabase.from('list_items').delete().in('id', ids)
+    setItems(prev => { const next = prev.filter(i => !i.checked); setCachedItems(listCode, next); return next })
+    if (navigator.onLine) {
+      await supabase.from('list_items').delete().in('id', ids)
+    } else {
+      ids.forEach(id => enqueue({ type: 'DELETE', id }))
+    }
   }
 
   async function changeCategory(itemId, newCatId) {
     const cat = products.categories.find(c => c.id === newCatId)
-    await supabase.from('list_items').update({ category: cat.name, category_id: newCatId }).eq('id', itemId)
+    const update = { category: cat.name, category_id: newCatId }
+    setItems(prev => { const next = prev.map(i => i.id === itemId ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
     setPickerItem(null)
-  }
-
-  function handleRowTap(e, id, checked) {
-    if (e.target.closest('button')) return
-    const now = Date.now()
-    const last = lastTapRef.current[id] || 0
-    if (now - last < 400) {
-      lastTapRef.current[id] = 0
-      toggleItem(id, checked)
+    if (navigator.onLine) {
+      await supabase.from('list_items').update(update).eq('id', itemId)
     } else {
-      lastTapRef.current[id] = now
+      enqueue({ type: 'UPDATE', id: itemId, data: update })
     }
   }
 
   function leaveList() {
     channelRef.current?.unsubscribe()
     localStorage.removeItem('trolley_code')
+    listCodeRef.current = null
     setListCode(null); setItems([]); setInput(''); setSuggestions([])
   }
 
@@ -350,6 +477,7 @@ export default function App() {
           </div>
         </div>
         <div className="header-right">
+          {!online && <span className="offline-badge">Offline</span>}
           <span className="code-badge">{listCode}</span>
           <button onClick={() => setSettingsOpen(true)} className="icon-btn" aria-label="Settings">⚙️</button>
           <button onClick={leaveList} className="leave-btn" aria-label="Leave list">✕</button>
@@ -407,6 +535,7 @@ export default function App() {
                       onPick={setPickerItem}
                       getCat={getCat}
                       lastTapRef={lastTapRef}
+                      swipeEnabled={true}
                     />
                   ))}
                 </ul>
@@ -437,6 +566,7 @@ export default function App() {
                           onPick={setPickerItem}
                           getCat={getCat}
                           lastTapRef={lastTapRef}
+                          swipeEnabled={false}
                         />
                       ))}
                     </ul>
@@ -448,7 +578,6 @@ export default function App() {
         </>
       )}
 
-      {/* Category picker */}
       {pickerItem && (
         <div className="overlay" onClick={() => setPickerItem(null)}>
           <div className="sheet" onClick={e => e.stopPropagation()}>
@@ -477,7 +606,6 @@ export default function App() {
         </div>
       )}
 
-      {/* Settings */}
       {settingsOpen && (
         <div className="overlay" onClick={() => setSettingsOpen(false)}>
           <div className="sheet" onClick={e => e.stopPropagation()}>

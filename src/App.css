@@ -458,6 +458,23 @@ header h1 {
   color: #e2e8f0;
 }
 
+.checked-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  opacity: 0.55;
+}
+
+.checked-section .category-heading {
+  color: #475569;
+}
+
+.checked-btn {
+  background: #6366f1 !important;
+  border-color: #6366f1 !important;
+}
+
 /* ---- Bottom Sheet / Overlay ---- */
 
 .overlay {

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.2.0'
+const VERSION = '1.3.0'
 
 function SortableCatItem({ id, cat }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
@@ -201,10 +201,13 @@ export default function App() {
 
   const orderedCats = categoryOrder.map(id => getCat(id)).filter(Boolean)
   const grouped = orderedCats
-    .map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id) }))
+    .map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked) }))
     .filter(g => g.items.length > 0)
 
   const checkedCount = items.filter(i => i.checked).length
+  const checkedGrouped = orderedCats
+    .map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && i.checked) }))
+    .filter(g => g.items.length > 0)
 
   if (!listCode) {
     return (
@@ -284,25 +287,20 @@ export default function App() {
                 <h2 className="category-heading">
                   <span className="cat-icon">{category.icon}</span>
                   {category.name}
-                  <span className="cat-count">{catItems.filter(i => !i.checked).length}/{catItems.length}</span>
+                  <span className="cat-count">{catItems.length}</span>
                 </h2>
                 <ul>
                   {catItems.map(item => (
                     <li
                       key={item.id}
-                      className={item.checked ? 'checked' : ''}
                       onClick={e => handleRowTap(e, item.id, item.checked)}
                       onDoubleClick={e => { if (!e.target.closest('button')) toggleItem(item.id, item.checked) }}
                     >
                       <button className="check-btn" onClick={() => toggleItem(item.id, item.checked)}>
-                        <span className="checkmark">{item.checked ? '✓' : ''}</span>
+                        <span className="checkmark" />
                       </button>
                       <span className="item-name">{item.name}</span>
-                      <button
-                        className="cat-change-btn"
-                        onClick={() => setPickerItem(item)}
-                        title="Change category"
-                      >
+                      <button className="cat-change-btn" onClick={() => setPickerItem(item)} title="Change category">
                         {getCat(item.category_id)?.icon ?? '🏷️'}
                       </button>
                       <button onClick={() => deleteItem(item.id)} className="delete-btn">✕</button>
@@ -312,10 +310,40 @@ export default function App() {
               </section>
             ))}
           </div>
+
           {checkedCount > 0 && (
-            <button onClick={clearChecked} className="clear-btn">
-              Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
-            </button>
+            <>
+              <button onClick={clearChecked} className="clear-btn">
+                Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
+              </button>
+              <div className="checked-container">
+                {checkedGrouped.map(({ category, items: catItems }) => (
+                  <section key={category.id} className="category-section checked-section" style={{ '--cat-color': category.color }}>
+                    <h2 className="category-heading">
+                      <span className="cat-icon">{category.icon}</span>
+                      {category.name}
+                      <span className="cat-count">{catItems.length}</span>
+                    </h2>
+                    <ul>
+                      {catItems.map(item => (
+                        <li
+                          key={item.id}
+                          className="checked"
+                          onClick={e => handleRowTap(e, item.id, item.checked)}
+                          onDoubleClick={e => { if (!e.target.closest('button')) toggleItem(item.id, item.checked) }}
+                        >
+                          <button className="check-btn checked-btn" onClick={() => toggleItem(item.id, item.checked)}>
+                            <span className="checkmark">✓</span>
+                          </button>
+                          <span className="item-name">{item.name}</span>
+                          <button onClick={() => deleteItem(item.id)} className="delete-btn">✕</button>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ))}
+              </div>
+            </>
           )}
         </>
       )}

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.9.0'
+const VERSION = '2.9.1'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -851,6 +851,20 @@ export default function App() {
     setDetailItem(null)
     if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', detailItem.id)
     else enqueue({ type: 'UPDATE', id: detailItem.id, data: update })
+
+    const { name: oldBase } = parseItemName(detailItem.name)
+    const { name: newBase } = parseItemName(newName)
+    if (oldBase.toLowerCase() !== newBase.toLowerCase()) {
+      const existing = history.find(h => h.name.toLowerCase() === oldBase.toLowerCase())
+      if (existing) {
+        const migrated = { ...existing, name: newBase }
+        setHistory(prev => prev.map(h => h.name.toLowerCase() === oldBase.toLowerCase() ? migrated : h))
+        if (navigator.onLine) {
+          await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existing.name)
+          await supabase.from('list_history').upsert(migrated, { onConflict: 'list_code,name' })
+        }
+      }
+    }
   }
 
   function openDetailCategoryPicker() {

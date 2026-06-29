@@ -8,50 +8,57 @@ const supabase = createClient(
   import.meta.env.VITE_SUPABASE_ANON_KEY
 )
 
+function loadCategoryOrder() {
+  try {
+    const saved = localStorage.getItem('trolley_cat_order')
+    if (saved) {
+      const parsed = JSON.parse(saved)
+      const allIds = products.categories.map(c => c.id)
+      const missing = allIds.filter(id => !parsed.includes(id))
+      return [...parsed, ...missing]
+    }
+  } catch {}
+  return products.categories.map(c => c.id)
+}
+
 export default function App() {
   const [listCode, setListCode] = useState(null)
   const [inputCode, setInputCode] = useState('')
   const [items, setItems] = useState([])
   const [input, setInput] = useState('')
   const [suggestions, setSuggestions] = useState([])
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [pickerItem, setPickerItem] = useState(null)
+  const [categoryOrder, setCategoryOrder] = useState(loadCategoryOrder)
   const inputRef = useRef(null)
   const channelRef = useRef(null)
 
   useEffect(() => {
     const saved = localStorage.getItem('trolley_code')
-    if (saved) {
-      setListCode(saved)
-      loadAndSubscribe(saved)
-    }
+    if (saved) { setListCode(saved); loadAndSubscribe(saved) }
     return () => channelRef.current?.unsubscribe()
   }, [])
 
+  useEffect(() => {
+    localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder))
+  }, [categoryOrder])
+
   async function loadAndSubscribe(code) {
     channelRef.current?.unsubscribe()
-
     const { data } = await supabase
-      .from('list_items')
-      .select('*')
-      .eq('list_code', code)
-      .order('created_at', { ascending: true })
-
+      .from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true })
     setItems(data || [])
-
     channelRef.current = supabase
       .channel(`list:${code}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'list_items',
-        filter: `list_code=eq.${code}`,
-      }, (payload) => {
-        setItems((prev) => {
-          if (payload.eventType === 'INSERT') return [...prev, payload.new]
-          if (payload.eventType === 'UPDATE') return prev.map((i) => i.id === payload.new.id ? payload.new : i)
-          if (payload.eventType === 'DELETE') return prev.filter((i) => i.id !== payload.old.id)
-          return prev
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items', filter: `list_code=eq.${code}` },
+        (payload) => {
+          setItems(prev => {
+            if (payload.eventType === 'INSERT') return [...prev, payload.new]
+            if (payload.eventType === 'UPDATE') return prev.map(i => i.id === payload.new.id ? payload.new : i)
+            if (payload.eventType === 'DELETE') return prev.filter(i => i.id !== payload.old.id)
+            return prev
+          })
         })
-      })
       .subscribe()
   }
 
@@ -79,50 +86,34 @@ export default function App() {
     if (value.length < 2) { setSuggestions([]); return }
     const search = value.toLowerCase()
     const matches = products.products
-      .filter((p) =>
-        p.name.toLowerCase().includes(search) ||
-        p.keywords.some((k) => k.includes(search))
-      )
+      .filter(p => p.name.toLowerCase().includes(search) || p.keywords.some(k => k.includes(search)))
       .slice(0, 8)
     setSuggestions(matches)
   }
 
   async function handleKeyDown(e) {
     if (e.key === 'Enter' && input.trim()) {
-      if (suggestions.length > 0) {
-        await addItem(suggestions[0])
-      } else {
-        await addCustomItem(input.trim())
-      }
+      if (suggestions.length > 0) await addItem(suggestions[0])
+      else await addCustomItem(input.trim())
     }
     if (e.key === 'Escape') setSuggestions([])
   }
 
   async function addItem(product) {
-    const category = products.categories.find((c) => c.id === product.category)
+    const category = products.categories.find(c => c.id === product.category)
     await supabase.from('list_items').insert({
-      list_code: listCode,
-      name: product.name,
-      category: category.name,
-      category_id: product.category,
-      checked: false,
+      list_code: listCode, name: product.name,
+      category: category.name, category_id: product.category, checked: false,
     })
-    setInput('')
-    setSuggestions([])
-    inputRef.current?.focus()
+    setInput(''); setSuggestions([]); inputRef.current?.focus()
   }
 
   async function addCustomItem(name) {
     await supabase.from('list_items').insert({
-      list_code: listCode,
-      name,
-      category: 'Other',
-      category_id: 'other',
-      checked: false,
+      list_code: listCode, name,
+      category: 'Other', category_id: 'other', checked: false,
     })
-    setInput('')
-    setSuggestions([])
-    inputRef.current?.focus()
+    setInput(''); setSuggestions([]); inputRef.current?.focus()
   }
 
   async function toggleItem(id, checked) {
@@ -134,28 +125,43 @@ export default function App() {
   }
 
   async function clearChecked() {
-    const checkedIds = items.filter((i) => i.checked).map((i) => i.id)
-    if (checkedIds.length === 0) return
-    await supabase.from('list_items').delete().in('id', checkedIds)
+    const ids = items.filter(i => i.checked).map(i => i.id)
+    if (!ids.length) return
+    await supabase.from('list_items').delete().in('id', ids)
+  }
+
+  async function changeCategory(itemId, newCatId) {
+    const cat = products.categories.find(c => c.id === newCatId)
+    await supabase.from('list_items').update({ category: cat.name, category_id: newCatId }).eq('id', itemId)
+    setPickerItem(null)
+  }
+
+  function moveCat(id, dir) {
+    setCategoryOrder(prev => {
+      const idx = prev.indexOf(id)
+      if (dir === 'up' && idx === 0) return prev
+      if (dir === 'down' && idx === prev.length - 1) return prev
+      const next = [...prev]
+      const swap = dir === 'up' ? idx - 1 : idx + 1
+      ;[next[idx], next[swap]] = [next[swap], next[idx]]
+      return next
+    })
   }
 
   function leaveList() {
     channelRef.current?.unsubscribe()
     localStorage.removeItem('trolley_code')
-    setListCode(null)
-    setItems([])
-    setInput('')
-    setSuggestions([])
+    setListCode(null); setItems([]); setInput(''); setSuggestions([])
   }
 
-  const grouped = products.categories
-    .map((cat) => ({
-      category: cat,
-      items: items.filter((i) => i.category_id === cat.id),
-    }))
-    .filter((g) => g.items.length > 0)
+  const getCat = (id) => products.categories.find(c => c.id === id)
 
-  const checkedCount = items.filter((i) => i.checked).length
+  const orderedCats = categoryOrder.map(id => getCat(id)).filter(Boolean)
+  const grouped = orderedCats
+    .map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id) }))
+    .filter(g => g.items.length > 0)
+
+  const checkedCount = items.filter(i => i.checked).length
 
   if (!listCode) {
     return (
@@ -168,14 +174,9 @@ export default function App() {
           <div className="divider"><span>or join existing</span></div>
           <form onSubmit={joinList} className="join-form">
             <input
-              type="text"
-              placeholder="Enter 6-letter code"
-              value={inputCode}
-              onChange={(e) => setInputCode(e.target.value.toUpperCase())}
-              maxLength="6"
-              className="code-input"
-              autoCapitalize="characters"
-              autoComplete="off"
+              type="text" placeholder="Enter 6-letter code" value={inputCode}
+              onChange={e => setInputCode(e.target.value.toUpperCase())}
+              maxLength="6" className="code-input" autoCapitalize="characters" autoComplete="off"
             />
             <button type="submit">Join</button>
           </form>
@@ -192,37 +193,32 @@ export default function App() {
           <h1>Trolley</h1>
         </div>
         <div className="header-right">
-          <span className="code-badge" title="Share this code with your partner">{listCode}</span>
-          <button onClick={leaveList} className="leave-btn" title="Leave list">✕</button>
+          <span className="code-badge">{listCode}</span>
+          <button onClick={() => setSettingsOpen(true)} className="icon-btn" aria-label="Settings">⚙️</button>
+          <button onClick={leaveList} className="leave-btn" aria-label="Leave list">✕</button>
         </div>
       </header>
 
       <div className="input-section">
         <input
-          ref={inputRef}
-          type="text"
-          placeholder="Add item..."
-          value={input}
-          onChange={handleInputChange}
-          onKeyDown={handleKeyDown}
-          className="item-input"
-          autoComplete="off"
+          ref={inputRef} type="text" placeholder="Add item..." value={input}
+          onChange={handleInputChange} onKeyDown={handleKeyDown}
+          className="item-input" autoComplete="off"
         />
         {suggestions.length > 0 && (
           <div className="suggestions">
-            {suggestions.map((p) => (
+            {suggestions.map(p => (
               <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
                 <span className="suggestion-name">{p.name}</span>
                 <span className="suggestion-cat">
-                  {products.categories.find((c) => c.id === p.category)?.icon}{' '}
-                  {products.categories.find((c) => c.id === p.category)?.name}
+                  {getCat(p.category)?.icon} {getCat(p.category)?.name}
                 </span>
               </button>
             ))}
             {input.trim() && (
               <button onClick={() => addCustomItem(input.trim())} className="suggestion-item suggestion-custom">
                 <span className="suggestion-name">Add &ldquo;{input.trim()}&rdquo;</span>
-                <span className="suggestion-cat">Other</span>
+                <span className="suggestion-cat">🛍️ Other</span>
               </button>
             )}
           </div>
@@ -245,13 +241,20 @@ export default function App() {
                   <span className="cat-count">{catItems.filter(i => !i.checked).length}/{catItems.length}</span>
                 </h2>
                 <ul>
-                  {catItems.map((item) => (
+                  {catItems.map(item => (
                     <li key={item.id} className={item.checked ? 'checked' : ''}>
                       <button className="check-btn" onClick={() => toggleItem(item.id, item.checked)}>
                         <span className="checkmark">{item.checked ? '✓' : ''}</span>
                       </button>
                       <span className="item-name">{item.name}</span>
-                      <button onClick={() => deleteItem(item.id)} className="delete-btn" aria-label="Remove">✕</button>
+                      <button
+                        className="cat-change-btn"
+                        onClick={() => setPickerItem(item)}
+                        title="Change category"
+                      >
+                        {getCat(item.category_id)?.icon ?? '🏷️'}
+                      </button>
+                      <button onClick={() => deleteItem(item.id)} className="delete-btn">✕</button>
                     </li>
                   ))}
                 </ul>
@@ -264,6 +267,78 @@ export default function App() {
             </button>
           )}
         </>
+      )}
+
+      {/* Category picker */}
+      {pickerItem && (
+        <div className="overlay" onClick={() => setPickerItem(null)}>
+          <div className="sheet" onClick={e => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <div>
+                <p className="sheet-label">Change category</p>
+                <p className="sheet-title">{pickerItem.name}</p>
+              </div>
+              <button onClick={() => setPickerItem(null)} className="sheet-close">✕</button>
+            </div>
+            <div className="sheet-body">
+              {products.categories.map(cat => (
+                <button
+                  key={cat.id}
+                  className={`cat-option${pickerItem.category_id === cat.id ? ' active' : ''}`}
+                  onClick={() => changeCategory(pickerItem.id, cat.id)}
+                >
+                  <span className="cat-option-icon">{cat.icon}</span>
+                  <span className="cat-option-name">{cat.name}</span>
+                  {pickerItem.category_id === cat.id && <span className="cat-option-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Settings */}
+      {settingsOpen && (
+        <div className="overlay" onClick={() => setSettingsOpen(false)}>
+          <div className="sheet" onClick={e => e.stopPropagation()}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <p className="sheet-title">Settings</p>
+              <button onClick={() => setSettingsOpen(false)} className="sheet-close">✕</button>
+            </div>
+            <div className="sheet-body">
+              <p className="settings-section-label">Category Order</p>
+              <p className="settings-hint">Drag to match your store layout</p>
+              <ul className="cat-order-list">
+                {categoryOrder.map((catId, idx) => {
+                  const cat = getCat(catId)
+                  if (!cat) return null
+                  return (
+                    <li key={catId} className="cat-order-item">
+                      <span className="cat-order-icon">{cat.icon}</span>
+                      <span className="cat-order-name">{cat.name}</span>
+                      <div className="order-btns">
+                        <button
+                          className="order-btn"
+                          onClick={() => moveCat(catId, 'up')}
+                          disabled={idx === 0}
+                          aria-label="Move up"
+                        >▲</button>
+                        <button
+                          className="order-btn"
+                          onClick={() => moveCat(catId, 'down')}
+                          disabled={idx === categoryOrder.length - 1}
+                          aria-label="Move down"
+                        >▼</button>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

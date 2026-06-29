@@ -286,6 +286,8 @@ export default function App() {
   const [tab, setTab] = useState('list')
   const [historySearch, setHistorySearch] = useState('')
   const [history, setHistory] = useState([])
+  const [confirming, setConfirming] = useState(null)
+  const confirmTimerRef = useRef(null)
   const [settingsView, setSettingsView] = useState('main')
   const [settingsJoinCode, setSettingsJoinCode] = useState('')
   const [addingCategory, setAddingCategory] = useState(false)
@@ -347,7 +349,17 @@ export default function App() {
   }
 
   function openSettings() { setSettingsView('main'); setSettingsOpen(true) }
-  function closeSettings() { setSettingsOpen(false); setSettingsView('main'); setSettingsJoinCode(''); setAddingCategory(false) }
+  function closeSettings() {
+    setSettingsOpen(false); setSettingsView('main'); setSettingsJoinCode(''); setAddingCategory(false)
+    setConfirming(null); clearTimeout(confirmTimerRef.current)
+  }
+
+  function requestConfirm(key) {
+    if (confirming === key) return
+    clearTimeout(confirmTimerRef.current)
+    setConfirming(key)
+    confirmTimerRef.current = setTimeout(() => setConfirming(null), 4000)
+  }
 
   async function switchList(code) {
     const clean = code.trim().toUpperCase()
@@ -992,12 +1004,28 @@ export default function App() {
                     <span className="settings-nav-arrow">›</span>
                   </button>
                   <p className="settings-divider-label" style={{ marginTop: '1.25rem' }}>Danger Zone</p>
-                  <button className="settings-action-btn danger" onClick={clearList}>
-                    Clear list
-                  </button>
-                  <button className="settings-action-btn danger" onClick={clearHistory} style={{ marginTop: '0.5rem' }}>
-                    Clear history
-                  </button>
+                  {confirming === 'list' ? (
+                    <div className="confirm-row">
+                      <span className="confirm-label">Clear entire list?</span>
+                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
+                      <button className="confirm-ok-btn" onClick={clearList}>Clear</button>
+                    </div>
+                  ) : (
+                    <button className="settings-action-btn danger" onClick={() => requestConfirm('list')}>
+                      Clear list
+                    </button>
+                  )}
+                  {confirming === 'history' ? (
+                    <div className="confirm-row" style={{ marginTop: '0.5rem' }}>
+                      <span className="confirm-label">Clear all history?</span>
+                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
+                      <button className="confirm-ok-btn" onClick={clearHistory}>Clear</button>
+                    </div>
+                  ) : (
+                    <button className="settings-action-btn danger" onClick={() => requestConfirm('history')} style={{ marginTop: '0.5rem' }}>
+                      Clear history
+                    </button>
+                  )}
                 </>
               )}
               {settingsView === 'list' && (

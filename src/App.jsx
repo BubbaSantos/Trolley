@@ -568,16 +568,16 @@ export default function App() {
     const histSugs = history
       .filter(h => !onList.has(h.name.toLowerCase()))
       .sort((a, b) => (b.count || 1) - (a.count || 1))
-      .slice(0, 8)
+      .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
         return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
       })
-    if (histSugs.length >= 8) return histSugs
+    if (histSugs.length >= 5) return histSugs
     const alreadyShown = new Set([...onList, ...histSugs.map(s => s.name.toLowerCase())])
     const fallback = COMMON_ITEMS
       .filter(item => !alreadyShown.has(item.name.toLowerCase()))
-      .slice(0, 8 - histSugs.length)
+      .slice(0, 5 - histSugs.length)
       .map(item => ({ name: item.name, category: item.category, fromHistory: true, count: 0 }))
     return [...histSugs, ...fallback]
   }

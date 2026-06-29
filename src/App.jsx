@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.6.0'
+const VERSION = '1.7.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -34,6 +34,22 @@ function saveQueue(q) {
 }
 function enqueue(op) {
   const q = getQueue(); q.push(op); saveQueue(q)
+}
+
+// --- Custom products (learned from your shopping habits) ---
+// Stored as [{ name, category: categoryId }], separate from built-in products.json
+function getCustomProducts() {
+  try { return JSON.parse(localStorage.getItem('trolley_custom_products') || '[]') } catch { return [] }
+}
+function upsertCustomProduct(name, categoryId) {
+  const existing = getCustomProducts()
+  const idx = existing.findIndex(p => p.name.toLowerCase() === name.toLowerCase())
+  if (idx >= 0) {
+    existing[idx].category = categoryId
+  } else {
+    existing.push({ name, category: categoryId })
+  }
+  try { localStorage.setItem('trolley_custom_products', JSON.stringify(existing)) } catch {}
 }
 
 // --- Online status hook ---
@@ -331,10 +347,16 @@ export default function App() {
     setInput(value)
     if (value.length < 2) { setSuggestions([]); return }
     const search = value.toLowerCase()
-    const matches = products.products
+
+    const customMatches = getCustomProducts()
+      .filter(p => p.name.toLowerCase().includes(search))
+
+    const customNames = new Set(customMatches.map(p => p.name.toLowerCase()))
+    const builtInMatches = products.products
+      .filter(p => !customNames.has(p.name.toLowerCase()))
       .filter(p => p.name.toLowerCase().includes(search) || p.keywords.some(k => k.includes(search)))
-      .slice(0, 8)
-    setSuggestions(matches)
+
+    setSuggestions([...customMatches, ...builtInMatches].slice(0, 8))
   }
 
   async function handleKeyDown(e) {
@@ -366,6 +388,10 @@ export default function App() {
   }
 
   async function addCustomItem(name) {
+    // Only save truly novel items to the learned database (skip if already in built-in products)
+    const isBuiltIn = products.products.some(p => p.name.toLowerCase() === name.toLowerCase())
+    if (!isBuiltIn) upsertCustomProduct(name, 'other')
+
     const newItem = {
       id: crypto.randomUUID(),
       list_code: listCode,
@@ -416,6 +442,8 @@ export default function App() {
   async function changeCategory(itemId, newCatId) {
     const cat = products.categories.find(c => c.id === newCatId)
     const update = { category: cat.name, category_id: newCatId }
+    const item = items.find(i => i.id === itemId)
+    if (item) upsertCustomProduct(item.name, newCatId)
     setItems(prev => { const next = prev.map(i => i.id === itemId ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
     setPickerItem(null)
     if (navigator.onLine) {

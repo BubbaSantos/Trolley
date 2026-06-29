@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.0.0'
+const VERSION = '2.0.1'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -365,16 +365,25 @@ export default function App() {
 
     channelRef.current = supabase
       .channel(`list:${code}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items', filter: `list_code=eq.${code}` },
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items' },
         (payload) => {
           setItems(prev => {
             let next = prev
             if (payload.eventType === 'INSERT') {
+              // Server filter removed: check list_code client-side
+              if (payload.new.list_code !== code) return prev
               if (prev.some(i => i.id === payload.new.id)) return prev
               next = [...prev, payload.new]
             }
-            if (payload.eventType === 'UPDATE') next = prev.map(i => i.id === payload.new.id ? payload.new : i)
-            if (payload.eventType === 'DELETE') next = prev.filter(i => i.id !== payload.old.id)
+            if (payload.eventType === 'UPDATE') {
+              if (payload.new.list_code !== code) return prev
+              next = prev.map(i => i.id === payload.new.id ? payload.new : i)
+            }
+            if (payload.eventType === 'DELETE') {
+              // payload.old only has the primary key without REPLICA IDENTITY FULL,
+              // so match by id — if it's not in our list nothing changes
+              next = prev.filter(i => i.id !== payload.old.id)
+            }
             setCachedItems(code, next)
             return next
           })

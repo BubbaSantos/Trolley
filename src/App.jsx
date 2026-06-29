@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.8.0'
+const VERSION = '1.8.1'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -525,7 +525,7 @@ export default function App() {
   // History: most recent first, optionally filtered by search
   const filteredHistory = history
     .filter(h => !historySearch || h.name.toLowerCase().includes(historySearch.toLowerCase()))
-    .sort((a, b) => new Date(b.lastUsed) - new Date(a.lastUsed))
+    .sort((a, b) => (b.count || 1) - (a.count || 1))
 
   if (!listCode) {
     return (

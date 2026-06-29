@@ -136,6 +136,9 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   }
 
   const { qty, name: displayName } = parseItemName(item.name)
+  const displayQty = qty
+    ? (qty.match(/^(\d+)x$/i) ? `x${qty.match(/^(\d+)/)[1]}` : qty)
+    : null
 
   return (
     <div className={`item-row-outer${animEnabled && isEntering ? ' item-enter' : ''}${animEnabled && isExiting ? ' item-exit' : ''}`}>
@@ -159,8 +162,8 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           >
             <span className="checkmark">{item.checked ? '✓' : ''}</span>
           </button>
-          {qty && <span className="item-qty">{qty}</span>}
           <span className="item-name">{displayName}</span>
+          {displayQty && <span className="item-qty">{displayQty}</span>}
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>
       </div>

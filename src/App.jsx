@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.7.0'
+const VERSION = '2.8.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -125,7 +125,7 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, onFavourite, isFavourite, lastTapRef, isEntering, isExiting, isStriking }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -207,6 +207,11 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           <span className="item-name-group">
             {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
           </span>
+          <button
+            className={`fav-btn${isFavourite ? ' active' : ''}`}
+            onClick={e => { e.stopPropagation(); onFavourite(item.name) }}
+            aria-label={isFavourite ? 'Unfavourite' : 'Favourite'}
+          >★</button>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>
       </div>
@@ -480,6 +485,7 @@ export default function App() {
       category_id: item.category_id,
       count: (current?.count || 0) + 1,
       last_used: new Date().toISOString(),
+      is_favourite: current?.is_favourite || false,
     }
     setHistory(prev => {
       const idx = prev.findIndex(h => h.name.toLowerCase() === cleanName.toLowerCase())
@@ -489,6 +495,30 @@ export default function App() {
     })
     if (navigator.onLine) {
       await supabase.from('list_history').upsert(newEntry, { onConflict: 'list_code,name' })
+    }
+  }
+
+  async function toggleFavourite(itemName) {
+    const { name: cleanName } = parseItemName(itemName)
+    const current = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
+    const isFav = !(current?.is_favourite || false)
+    const entry = {
+      list_code: listCode,
+      name: current?.name || cleanName,
+      category_id: current?.category_id || 'other',
+      count: current?.count || 0,
+      last_used: current?.last_used || new Date().toISOString(),
+      is_favourite: isFav,
+    }
+    setHistory(prev => {
+      const idx = prev.findIndex(h => h.name.toLowerCase() === cleanName.toLowerCase())
+      const next = [...prev]
+      if (idx >= 0) next[idx] = { ...next[idx], is_favourite: isFav }
+      else next.push(entry)
+      return next
+    })
+    if (navigator.onLine) {
+      await supabase.from('list_history').upsert(entry, { onConflict: 'list_code,name' })
     }
   }
 
@@ -568,7 +598,11 @@ export default function App() {
     ])
     const histSugs = history
       .filter(h => !onList.has(h.name.toLowerCase()))
-      .sort((a, b) => (b.count || 1) - (a.count || 1))
+      .sort((a, b) => {
+        if (a.is_favourite && !b.is_favourite) return -1
+        if (!a.is_favourite && b.is_favourite) return 1
+        return (b.count || 1) - (a.count || 1)
+      })
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
@@ -849,7 +883,10 @@ export default function App() {
   }
 
   const orderedCats = categoryOrder.map(id => getCat(id)).filter(Boolean)
-  const grouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked) })).filter(g => g.items.length > 0)
+  const favouriteNames = new Set(history.filter(h => h.is_favourite).map(h => h.name.toLowerCase()))
+  const favouriteItems = items.filter(i => !i.checked && favouriteNames.has(parseItemName(i.name).name.toLowerCase()))
+  const favouriteIds = new Set(favouriteItems.map(i => i.id))
+  const grouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked && !favouriteIds.has(i.id)) })).filter(g => g.items.length > 0)
   const checkedCount = items.filter(i => i.checked).length
   const checkedSorted = items.filter(i => i.checked).sort((a, b) => (b.checked_at || 0) - (a.checked_at || 0))
   const filteredHistory = history
@@ -860,7 +897,8 @@ export default function App() {
     return (
       <SwipeItem
         key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem}
-        onInfo={openDetail} lastTapRef={lastTapRef}
+        onInfo={openDetail} onFavourite={toggleFavourite} lastTapRef={lastTapRef}
+        isFavourite={favouriteNames.has(parseItemName(item.name).name.toLowerCase())}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
         isStriking={strikingIds.has(item.id)}
       />
@@ -951,6 +989,16 @@ export default function App() {
           ) : (
             <>
               <div className="items-container">
+                {favouriteItems.length > 0 && (
+                  <section className="category-section favourites-section">
+                    <h2 className="category-heading">
+                      <span className="cat-icon">★</span>
+                      Favourites
+                      <span className="cat-count">{favouriteItems.length}</span>
+                    </h2>
+                    <ul>{favouriteItems.map(renderItem)}</ul>
+                  </section>
+                )}
                 {grouped.map(({ category, items: catItems }) => (
                   <section key={category.id} className="category-section" style={{ '--cat-color': category.color }}>
                     <h2 className="category-heading">

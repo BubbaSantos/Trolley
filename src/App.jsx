@@ -744,7 +744,7 @@ export default function App() {
         setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now } : i); setCachedItems(listCode, next); return next })
         if (navigator.onLine) await supabase.from('list_items').update({ checked: true }).eq('id', id)
         else enqueue({ type: 'UPDATE', id, data: { checked: true } })
-      }, 700)
+      }, 2000)
     } else {
       setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null } : i); setCachedItems(listCode, next); return next })
       if (navigator.onLine) await supabase.from('list_items').update({ checked: false }).eq('id', id)

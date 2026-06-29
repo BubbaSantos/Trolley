@@ -3,6 +3,8 @@ import { createClient } from '@supabase/supabase-js'
 import products from './data/products.json'
 import './App.css'
 
+const VERSION = '1.1.0'
+
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -32,6 +34,7 @@ export default function App() {
   const [categoryOrder, setCategoryOrder] = useState(loadCategoryOrder)
   const inputRef = useRef(null)
   const channelRef = useRef(null)
+  const lastTapRef = useRef({})
 
   useEffect(() => {
     const saved = localStorage.getItem('trolley_code')
@@ -148,6 +151,18 @@ export default function App() {
     })
   }
 
+  function handleRowTap(e, id, checked) {
+    if (e.target.closest('button')) return
+    const now = Date.now()
+    const last = lastTapRef.current[id] || 0
+    if (now - last < 400) {
+      lastTapRef.current[id] = 0
+      toggleItem(id, checked)
+    } else {
+      lastTapRef.current[id] = now
+    }
+  }
+
   function leaveList() {
     channelRef.current?.unsubscribe()
     localStorage.removeItem('trolley_code')
@@ -188,9 +203,12 @@ export default function App() {
   return (
     <div className="app">
       <header>
-        <div className="header-left">
+        <div className="header-left" onClick={() => window.location.reload()}>
           <span className="logo">🛒</span>
-          <h1>Trolley</h1>
+          <div className="header-title">
+            <h1>Trolley</h1>
+            <p className="version">v{VERSION}</p>
+          </div>
         </div>
         <div className="header-right">
           <span className="code-badge">{listCode}</span>
@@ -242,7 +260,12 @@ export default function App() {
                 </h2>
                 <ul>
                   {catItems.map(item => (
-                    <li key={item.id} className={item.checked ? 'checked' : ''}>
+                    <li
+                      key={item.id}
+                      className={item.checked ? 'checked' : ''}
+                      onClick={e => handleRowTap(e, item.id, item.checked)}
+                      onDoubleClick={e => { if (!e.target.closest('button')) toggleItem(item.id, item.checked) }}
+                    >
                       <button className="check-btn" onClick={() => toggleItem(item.id, item.checked)}>
                         <span className="checkmark">{item.checked ? '✓' : ''}</span>
                       </button>

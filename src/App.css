@@ -140,7 +140,7 @@ button {
 .app {
   max-width: 600px;
   margin: 0 auto;
-  padding: 1rem 1rem 6rem;
+  padding: env(safe-area-inset-top, 0px) 1rem calc(env(safe-area-inset-bottom, 0px) + 6rem);
   min-height: 100vh;
 }
 
@@ -157,14 +157,33 @@ header {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
+.header-left:active { opacity: 0.7; }
+
 .logo { font-size: 1.5rem; }
+
+.header-title {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
 
 header h1 {
   font-size: 1.5rem;
   font-weight: 800;
   letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+.version {
+  font-size: 0.65rem;
+  color: #475569;
+  font-weight: 500;
+  letter-spacing: 0.04em;
 }
 
 .header-right {

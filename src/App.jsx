@@ -12,12 +12,11 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.0.1'
+const VERSION = '2.1.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
 
-// --- Local cache ---
 function getCachedItems(code) {
   try { return JSON.parse(localStorage.getItem(`trolley_items_${code}`) || '[]') } catch { return [] }
 }
@@ -25,7 +24,6 @@ function setCachedItems(code, items) {
   try { localStorage.setItem(`trolley_items_${code}`, JSON.stringify(items)) } catch {}
 }
 
-// --- Offline queue ---
 function getQueue() {
   try { return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]') } catch { return [] }
 }
@@ -36,27 +34,45 @@ function enqueue(op) {
   const q = getQueue(); q.push(op); saveQueue(q)
 }
 
-// --- Custom products (learned from shopping habits) ---
 function getCustomProducts() {
   try { return JSON.parse(localStorage.getItem('trolley_custom_products') || '[]') } catch { return [] }
 }
 function upsertCustomProduct(name, categoryId) {
   const existing = getCustomProducts()
   const idx = existing.findIndex(p => p.name.toLowerCase() === name.toLowerCase())
-  if (idx >= 0) {
-    existing[idx].category = categoryId
-  } else {
-    existing.push({ name, category: categoryId })
-  }
+  if (idx >= 0) existing[idx].category = categoryId
+  else existing.push({ name, category: categoryId })
   try { localStorage.setItem('trolley_custom_products', JSON.stringify(existing)) } catch {}
 }
 
-// --- Haptic feedback (Web Vibration API - Android + iOS PWA) ---
+// "2 onion" → { qty: "2x", name: "onion" }  |  "500g mince" → { qty: "500g", name: "mince" }
+function parseInputQty(raw) {
+  const s = raw.trim()
+  let m
+  m = s.match(/^(\d+(?:\.\d+)?(?:kg|g|ml|l|lbs?|oz))\s+(.+)$/i)
+  if (m) return { qty: m[1].toLowerCase(), name: m[2] }
+  m = s.match(/^(.+?)\s+(\d+(?:\.\d+)?(?:kg|g|ml|l|lbs?|oz))$/i)
+  if (m) return { qty: m[2].toLowerCase(), name: m[1] }
+  m = s.match(/^(\d+)x?\s+(.+)$/i)
+  if (m) return { qty: `${m[1]}x`, name: m[2] }
+  m = s.match(/^(.+?)\s+(\d+)$/)
+  if (m && parseInt(m[2]) <= 99) return { qty: `${m[2]}x`, name: m[1] }
+  return { qty: null, name: s }
+}
+
+// "2x Onions" → { qty: "2x", name: "Onions" }
+function parseItemName(stored) {
+  let m = stored.match(/^(\d+x)\s+(.+)$/i)
+  if (m) return { qty: m[1], name: m[2] }
+  m = stored.match(/^(\d+(?:\.\d+)?(?:kg|g|ml|l|lbs?|oz))\s+(.+)$/i)
+  if (m) return { qty: m[1], name: m[2] }
+  return { qty: null, name: stored }
+}
+
 function haptic(pattern = 10) {
   try { navigator.vibrate?.(pattern) } catch {}
 }
 
-// --- Online status hook ---
 function useOnlineStatus() {
   const [online, setOnline] = useState(navigator.onLine)
   useEffect(() => {
@@ -69,8 +85,7 @@ function useOnlineStatus() {
   return online
 }
 
-// swipeEnabled=false for checked items: no red bg, no swipe gesture
-function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef, swipeEnabled }) {
+function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef, isEntering, isExiting, animEnabled }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -81,7 +96,6 @@ function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef, swipe
   function setTx(v) { txRef.current = v; _setTx(v) }
 
   useEffect(() => {
-    if (!swipeEnabled) return
     const el = rowRef.current
     if (!el) return
     let startX = 0, startY = 0, dir = null, baseX = 0
@@ -129,7 +143,7 @@ function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef, swipe
       el.removeEventListener('touchmove', onMove)
       el.removeEventListener('touchend', onEnd)
     }
-  }, [item.id, swipeEnabled])
+  }, [item.id])
 
   function handleClick(e) {
     if (txRef.current !== 0) { setAnimate(true); setTx(0); return }
@@ -144,36 +158,43 @@ function SwipeItem({ item, onToggle, onDelete, onPick, getCat, lastTapRef, swipe
     }
   }
 
+  const { qty, name: displayName } = parseItemName(item.name)
+
   return (
-    <div className="swipe-wrapper">
-      {swipeEnabled && (
+    <div className={`item-row-outer${animEnabled && isEntering ? ' item-enter' : ''}${animEnabled && isExiting ? ' item-exit' : ''}`}>
+      <div className="swipe-wrapper">
         <div className="swipe-bg">
-          <button className="swipe-delete-btn" onClick={() => onDelete(item.id)}>Delete</button>
+          <button className="swipe-delete-btn" onClick={() => {
+            setAnimate(true)
+            setTx(-window.innerWidth)
+            setTimeout(() => onDeleteRef.current(item.id), 260)
+          }}>Delete</button>
         </div>
-      )}
-      <div
-        ref={rowRef}
-        className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
-        style={{ transform: `translateX(${tx}px)` }}
-        onClick={handleClick}
-        onDoubleClick={e => { if (!e.target.closest('button') && txRef.current === 0) onToggle(item.id, item.checked) }}
-      >
-        <button
-          className={`check-btn${item.checked ? ' checked-btn' : ''}`}
-          onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
+        <div
+          ref={rowRef}
+          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
+          style={{ transform: `translateX(${tx}px)` }}
+          onClick={handleClick}
+          onDoubleClick={e => { if (!e.target.closest('button') && txRef.current === 0) onToggle(item.id, item.checked) }}
         >
-          <span className="checkmark">{item.checked ? '✓' : ''}</span>
-        </button>
-        <span className="item-name">{item.name}</span>
-        {!item.checked && (
           <button
-            className="cat-change-btn"
-            onClick={e => { e.stopPropagation(); onPick(item) }}
-            title="Change category"
+            className={`check-btn${item.checked ? ' checked-btn' : ''}${animEnabled ? ' anim' : ''}`}
+            onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
           >
-            {getCat(item.category_id)?.icon ?? '🏷️'}
+            <span className="checkmark">{item.checked ? '✓' : ''}</span>
           </button>
-        )}
+          {qty && <span className="item-qty">{qty}</span>}
+          <span className="item-name">{displayName}</span>
+          {!item.checked && (
+            <button
+              className="cat-change-btn"
+              onClick={e => { e.stopPropagation(); onPick(item) }}
+              title="Change category"
+            >
+              {getCat(item.category_id)?.icon ?? '🏷️'}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -194,6 +215,68 @@ function SortableCatItem({ id, cat }) {
   )
 }
 
+// Bottom sheet with swipe-down-to-close
+function BottomSheet({ onClose, children }) {
+  const sheetRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  useEffect(() => {
+    const el = sheetRef.current
+    if (!el) return
+    let startY = 0, startTime = 0, currentY = 0, engaged = false
+
+    function onStart(e) {
+      startY = e.touches[0].clientY
+      startTime = Date.now()
+      currentY = 0
+      engaged = false
+      el.style.transition = 'none'
+    }
+
+    function onMove(e) {
+      const dy = e.touches[0].clientY - startY
+      if (dy <= 0) { engaged = false; return }
+      const bodyEl = el.querySelector('.sheet-body')
+      if (!engaged && bodyEl && bodyEl.scrollTop > 0) return
+      engaged = true
+      currentY = dy
+      el.style.transform = `translateY(${dy}px)`
+      e.preventDefault()
+    }
+
+    function onEnd() {
+      if (!engaged) { el.style.transition = ''; return }
+      const elapsed = Date.now() - startTime
+      const velocity = currentY / elapsed
+      if (currentY > 100 || velocity > 0.4) {
+        el.style.transition = 'transform 0.25s ease'
+        el.style.transform = `translateY(100%)`
+        setTimeout(() => onCloseRef.current(), 250)
+      } else {
+        el.style.transition = 'transform 0.25s ease'
+        el.style.transform = ''
+      }
+      engaged = false
+    }
+
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    return () => {
+      el.removeEventListener('touchstart', onStart)
+      el.removeEventListener('touchmove', onMove)
+      el.removeEventListener('touchend', onEnd)
+    }
+  }, [])
+
+  return (
+    <div ref={sheetRef} className="sheet" onClick={e => e.stopPropagation()}>
+      {children}
+    </div>
+  )
+}
+
 const supabase = createClient(
   import.meta.env.VITE_SUPABASE_URL,
   import.meta.env.VITE_SUPABASE_ANON_KEY
@@ -205,16 +288,10 @@ async function flushQueue() {
   const failed = []
   for (const op of q) {
     try {
-      if (op.type === 'INSERT') {
-        await supabase.from('list_items').upsert(op.data, { onConflict: 'id' })
-      } else if (op.type === 'UPDATE') {
-        await supabase.from('list_items').update(op.data).eq('id', op.id)
-      } else if (op.type === 'DELETE') {
-        await supabase.from('list_items').delete().eq('id', op.id)
-      }
-    } catch {
-      failed.push(op)
-    }
+      if (op.type === 'INSERT') await supabase.from('list_items').upsert(op.data, { onConflict: 'id' })
+      else if (op.type === 'UPDATE') await supabase.from('list_items').update(op.data).eq('id', op.id)
+      else if (op.type === 'DELETE') await supabase.from('list_items').delete().eq('id', op.id)
+    } catch { failed.push(op) }
   }
   saveQueue(failed)
 }
@@ -241,6 +318,7 @@ export default function App() {
   const [inputCode, setInputCode] = useState('')
   const [items, setItems] = useState([])
   const [input, setInput] = useState('')
+  const [inputQty, setInputQty] = useState(null)
   const [suggestions, setSuggestions] = useState([])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pickerItem, setPickerItem] = useState(null)
@@ -255,12 +333,20 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', saved)
     return saved
   })
+  const [animEnabled, setAnimEnabled] = useState(() => localStorage.getItem('trolley_animations') !== 'off')
+  const [enteringIds, setEnteringIds] = useState(() => new Set())
+  const [exitingIds, setExitingIds] = useState(() => new Set())
+
   const inputRef = useRef(null)
   const channelRef = useRef(null)
   const lastTapRef = useRef({})
   const listCodeRef = useRef(null)
+  const locallyAddedIdsRef = useRef(new Set())
+  const itemsRef = useRef([])
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
+
+  useEffect(() => { itemsRef.current = items }, [items])
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -296,14 +382,18 @@ export default function App() {
     localStorage.setItem('trolley_theme', theme)
   }, [theme])
 
-  function toggleTheme() {
-    setTheme(t => t === 'dark' ? 'light' : 'dark')
+  useEffect(() => {
+    localStorage.setItem('trolley_animations', animEnabled ? 'on' : 'off')
+  }, [animEnabled])
+
+  function toggleTheme() { setTheme(t => t === 'dark' ? 'light' : 'dark') }
+
+  function markEntering(id) {
+    setEnteringIds(prev => new Set([...prev, id]))
+    setTimeout(() => setEnteringIds(prev => { const s = new Set(prev); s.delete(id); return s }), 400)
   }
 
-  function openSettings() {
-    setSettingsView('main')
-    setSettingsOpen(true)
-  }
+  function openSettings() { setSettingsView('main'); setSettingsOpen(true) }
 
   function closeSettings() {
     setSettingsOpen(false)
@@ -367,26 +457,39 @@ export default function App() {
       .channel(`list:${code}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'list_items' },
         (payload) => {
-          setItems(prev => {
-            let next = prev
-            if (payload.eventType === 'INSERT') {
-              // Server filter removed: check list_code client-side
-              if (payload.new.list_code !== code) return prev
+          if (payload.eventType === 'INSERT') {
+            if (payload.new.list_code !== code) return
+            if (itemsRef.current.some(i => i.id === payload.new.id)) return
+            setItems(prev => {
               if (prev.some(i => i.id === payload.new.id)) return prev
-              next = [...prev, payload.new]
+              const next = [...prev, payload.new]
+              setCachedItems(code, next)
+              return next
+            })
+            if (!locallyAddedIdsRef.current.has(payload.new.id)) {
+              markEntering(payload.new.id)
             }
-            if (payload.eventType === 'UPDATE') {
-              if (payload.new.list_code !== code) return prev
-              next = prev.map(i => i.id === payload.new.id ? payload.new : i)
-            }
-            if (payload.eventType === 'DELETE') {
-              // payload.old only has the primary key without REPLICA IDENTITY FULL,
-              // so match by id — if it's not in our list nothing changes
-              next = prev.filter(i => i.id !== payload.old.id)
-            }
-            setCachedItems(code, next)
-            return next
-          })
+          }
+          if (payload.eventType === 'UPDATE') {
+            if (payload.new.list_code !== code) return
+            setItems(prev => {
+              const next = prev.map(i => i.id === payload.new.id ? payload.new : i)
+              setCachedItems(code, next)
+              return next
+            })
+          }
+          if (payload.eventType === 'DELETE') {
+            const id = payload.old.id
+            setExitingIds(prev => new Set([...prev, id]))
+            setTimeout(() => {
+              setExitingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+              setItems(prev => {
+                const next = prev.filter(i => i.id !== id)
+                setCachedItems(code, next)
+                return next
+              })
+            }, 260)
+          }
         })
       .subscribe()
   }
@@ -414,17 +517,15 @@ export default function App() {
   function handleInputChange(e) {
     const value = e.target.value
     setInput(value)
-    if (value.length < 2) { setSuggestions([]); return }
-    const search = value.toLowerCase()
-
-    const customMatches = getCustomProducts()
-      .filter(p => p.name.toLowerCase().includes(search))
-
+    const { qty, name: cleanName } = parseInputQty(value)
+    setInputQty(qty)
+    if (cleanName.length < 2) { setSuggestions([]); return }
+    const search = cleanName.toLowerCase()
+    const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search))
     const customNames = new Set(customMatches.map(p => p.name.toLowerCase()))
     const builtInMatches = products.products
       .filter(p => !customNames.has(p.name.toLowerCase()))
       .filter(p => p.name.toLowerCase().includes(search) || p.keywords.some(k => k.includes(search)))
-
     setSuggestions([...customMatches, ...builtInMatches].slice(0, 8))
   }
 
@@ -438,18 +539,22 @@ export default function App() {
 
   async function addItem(product) {
     haptic(15)
+    const id = crypto.randomUUID()
+    const storedName = inputQty ? `${inputQty} ${product.name}` : product.name
     const category = products.categories.find(c => c.id === product.category)
     const newItem = {
-      id: crypto.randomUUID(),
+      id,
       list_code: listCode,
-      name: product.name,
+      name: storedName,
       category: category?.name ?? 'Other',
       category_id: product.category,
       checked: false,
       created_at: new Date().toISOString(),
     }
     setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
-    setInput(''); setSuggestions([]); inputRef.current?.focus()
+    locallyAddedIdsRef.current.add(id)
+    markEntering(id)
+    setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     if (navigator.onLine) {
       await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
     } else {
@@ -457,22 +562,28 @@ export default function App() {
     }
   }
 
-  async function addCustomItem(name) {
+  async function addCustomItem(rawName) {
     haptic(15)
-    const isBuiltIn = products.products.some(p => p.name.toLowerCase() === name.toLowerCase())
-    if (!isBuiltIn) upsertCustomProduct(name, 'other')
-
+    const { qty, name: cleanName } = parseInputQty(rawName)
+    const storedName = qty
+      ? `${qty} ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)}`
+      : rawName
+    const isBuiltIn = products.products.some(p => p.name.toLowerCase() === cleanName.toLowerCase())
+    if (!isBuiltIn) upsertCustomProduct(storedName, 'other')
+    const id = crypto.randomUUID()
     const newItem = {
-      id: crypto.randomUUID(),
+      id,
       list_code: listCode,
-      name,
+      name: storedName,
       category: 'Other',
       category_id: 'other',
       checked: false,
       created_at: new Date().toISOString(),
     }
     setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
-    setInput(''); setSuggestions([]); inputRef.current?.focus()
+    locallyAddedIdsRef.current.add(id)
+    markEntering(id)
+    setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     if (navigator.onLine) {
       await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
     } else {
@@ -483,8 +594,9 @@ export default function App() {
   async function addFromHistory(histItem) {
     haptic(15)
     const cat = products.categories.find(c => c.id === histItem.category_id)
+    const id = crypto.randomUUID()
     const newItem = {
-      id: crypto.randomUUID(),
+      id,
       list_code: listCode,
       name: histItem.name,
       category: cat?.name ?? 'Other',
@@ -493,6 +605,8 @@ export default function App() {
       created_at: new Date().toISOString(),
     }
     setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
+    locallyAddedIdsRef.current.add(id)
+    markEntering(id)
     if (navigator.onLine) {
       await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
     } else {
@@ -527,7 +641,11 @@ export default function App() {
     if (!checkedItems.length) return
     checkedItems.forEach(i => recordHistory(i))
     const ids = checkedItems.map(i => i.id)
-    setItems(prev => { const next = prev.filter(i => !i.checked); setCachedItems(listCode, next); return next })
+    setExitingIds(prev => new Set([...prev, ...ids]))
+    setTimeout(() => {
+      setExitingIds(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s })
+      setItems(prev => { const next = prev.filter(i => !ids.includes(i.id)); setCachedItems(listCode, next); return next })
+    }, 260)
     if (navigator.onLine) {
       await supabase.from('list_items').delete().in('id', ids)
     } else {
@@ -568,10 +686,26 @@ export default function App() {
     .map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && i.checked) }))
     .filter(g => g.items.length > 0)
 
-  // History: most recent first, optionally filtered by search
   const filteredHistory = history
     .filter(h => !historySearch || h.name.toLowerCase().includes(historySearch.toLowerCase()))
     .sort((a, b) => (b.count || 1) - (a.count || 1))
+
+  function renderItem(item) {
+    return (
+      <SwipeItem
+        key={item.id}
+        item={item}
+        onToggle={toggleItem}
+        onDelete={deleteItem}
+        onPick={setPickerItem}
+        getCat={getCat}
+        lastTapRef={lastTapRef}
+        isEntering={enteringIds.has(item.id)}
+        isExiting={exitingIds.has(item.id)}
+        animEnabled={animEnabled}
+      />
+    )
+  }
 
   if (!listCode) {
     return (
@@ -623,7 +757,10 @@ export default function App() {
               <div className="suggestions">
                 {suggestions.map(p => (
                   <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
-                    <span className="suggestion-name">{p.name}</span>
+                    <span className="suggestion-name">
+                      {inputQty && <span className="suggestion-qty">{inputQty} </span>}
+                      {p.name}
+                    </span>
                     <span className="suggestion-cat">
                       {getCat(p.category)?.icon} {getCat(p.category)?.name}
                     </span>
@@ -654,20 +791,7 @@ export default function App() {
                       {category.name}
                       <span className="cat-count">{catItems.length}</span>
                     </h2>
-                    <ul>
-                      {catItems.map(item => (
-                        <SwipeItem
-                          key={item.id}
-                          item={item}
-                          onToggle={toggleItem}
-                          onDelete={deleteItem}
-                          onPick={setPickerItem}
-                          getCat={getCat}
-                          lastTapRef={lastTapRef}
-                          swipeEnabled={true}
-                        />
-                      ))}
-                    </ul>
+                    <ul>{catItems.map(renderItem)}</ul>
                   </section>
                 ))}
               </div>
@@ -685,20 +809,7 @@ export default function App() {
                           {category.name}
                           <span className="cat-count">{catItems.length}</span>
                         </h2>
-                        <ul>
-                          {catItems.map(item => (
-                            <SwipeItem
-                              key={item.id}
-                              item={item}
-                              onToggle={toggleItem}
-                              onDelete={deleteItem}
-                              onPick={setPickerItem}
-                              getCat={getCat}
-                              lastTapRef={lastTapRef}
-                              swipeEnabled={false}
-                            />
-                          ))}
-                        </ul>
+                        <ul>{catItems.map(renderItem)}</ul>
                       </section>
                     ))}
                   </div>
@@ -711,12 +822,9 @@ export default function App() {
         <>
           <div className="input-section">
             <input
-              type="text"
-              placeholder="Search history..."
-              value={historySearch}
+              type="text" placeholder="Search history..." value={historySearch}
               onChange={e => setHistorySearch(e.target.value)}
-              className="item-input"
-              autoComplete="off"
+              className="item-input" autoComplete="off"
             />
           </div>
 
@@ -724,9 +832,7 @@ export default function App() {
             <div className="empty-state">
               <p>{historySearch ? 'No matching items' : 'No history yet'}</p>
               <p className="empty-hint">
-                {historySearch
-                  ? 'Try a different search'
-                  : 'Items you tick off or delete will appear here'}
+                {historySearch ? 'Try a different search' : 'Items you tick off or delete will appear here'}
               </p>
             </div>
           ) : (
@@ -754,7 +860,7 @@ export default function App() {
 
       {pickerItem && (
         <div className="overlay" onClick={() => setPickerItem(null)}>
-          <div className="sheet" onClick={e => e.stopPropagation()}>
+          <BottomSheet onClose={() => setPickerItem(null)}>
             <div className="sheet-handle" />
             <div className="sheet-header">
               <div>
@@ -776,13 +882,13 @@ export default function App() {
                 </button>
               ))}
             </div>
-          </div>
+          </BottomSheet>
         </div>
       )}
 
       {settingsOpen && (
         <div className="overlay" onClick={closeSettings}>
-          <div className="sheet" onClick={e => e.stopPropagation()}>
+          <BottomSheet onClose={closeSettings}>
             <div className="sheet-handle" />
             <div className="sheet-header">
               <div style={{ display: 'flex', alignItems: 'center' }}>
@@ -805,6 +911,12 @@ export default function App() {
                     <span className="settings-row-label">Appearance</span>
                     <button className="theme-toggle-btn" onClick={toggleTheme}>
                       {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
+                    </button>
+                  </div>
+                  <div className="settings-row">
+                    <span className="settings-row-label">Animations</span>
+                    <button className="theme-toggle-btn" onClick={() => setAnimEnabled(v => !v)}>
+                      {animEnabled ? '✨ On' : '⚡ Off'}
                     </button>
                   </div>
                   <button className="settings-nav-item" onClick={() => setSettingsView('list')}>
@@ -832,18 +944,14 @@ export default function App() {
                     <p className="list-code-big">{listCode}</p>
                     <p className="list-code-hint">Share this code with your partner</p>
                   </div>
-
                   <p className="settings-divider-label">Join another list</p>
                   <div className="settings-join-row">
                     <input
-                      type="text"
-                      placeholder="Enter 6-letter code"
+                      type="text" placeholder="Enter 6-letter code"
                       value={settingsJoinCode}
                       onChange={e => setSettingsJoinCode(e.target.value.toUpperCase())}
-                      maxLength="6"
-                      className="settings-join-input"
-                      autoCapitalize="characters"
-                      autoComplete="off"
+                      maxLength="6" className="settings-join-input"
+                      autoCapitalize="characters" autoComplete="off"
                     />
                     <button className="settings-join-btn" onClick={() => switchList(settingsJoinCode)}>
                       Join
@@ -855,7 +963,6 @@ export default function App() {
                   >
                     + Create new list
                   </button>
-
                   <p className="settings-divider-label">Leave</p>
                   <button
                     className="settings-action-btn danger"
@@ -883,7 +990,7 @@ export default function App() {
                 </>
               )}
             </div>
-          </div>
+          </BottomSheet>
         </div>
       )}
 

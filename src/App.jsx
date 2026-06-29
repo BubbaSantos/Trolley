@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '1.8.1'
+const VERSION = '1.9.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -248,6 +248,11 @@ export default function App() {
   const [tab, setTab] = useState('list')
   const [historySearch, setHistorySearch] = useState('')
   const [history, setHistory] = useState(loadHistory)
+  const [theme, setTheme] = useState(() => {
+    const saved = localStorage.getItem('trolley_theme') || 'dark'
+    document.documentElement.setAttribute('data-theme', saved)
+    return saved
+  })
   const inputRef = useRef(null)
   const channelRef = useRef(null)
   const lastTapRef = useRef({})
@@ -283,6 +288,15 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder))
   }, [categoryOrder])
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('trolley_theme', theme)
+  }, [theme])
+
+  function toggleTheme() {
+    setTheme(t => t === 'dark' ? 'light' : 'dark')
+  }
 
   useEffect(() => {
     if (online && !prevOnlineRef.current && listCodeRef.current) {
@@ -745,6 +759,12 @@ export default function App() {
               <button onClick={() => setSettingsOpen(false)} className="sheet-close">✕</button>
             </div>
             <div className="sheet-body">
+              <div className="settings-row">
+                <span className="settings-row-label">Appearance</span>
+                <button className="theme-toggle-btn" onClick={toggleTheme}>
+                  {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
+                </button>
+              </div>
               <p className="settings-section-label">Category Order</p>
               <p className="settings-hint">Hold and drag to match your store layout</p>
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

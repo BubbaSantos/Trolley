@@ -1,0 +1,16 @@
+{
+  "name": "Trolley",
+  "short_name": "Trolley",
+  "description": "Shared shopping lists, synced instantly",
+  "start_url": "/Trolley/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "icons": [
+    {
+      "src": "/Trolley/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    }
+  ]
+}

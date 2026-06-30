@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.12.2'
+const VERSION = '2.12.3'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -522,6 +522,7 @@ export default function App() {
   const [history, setHistory] = useState([])
   const [confirming, setConfirming] = useState(null)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false)
+  const [confirmClearChecked, setConfirmClearChecked] = useState(false)
   const confirmTimerRef = useRef(null)
   const [settingsView, setSettingsView] = useState('main')
   const [settingsJoinCode, setSettingsJoinCode] = useState('')
@@ -1313,9 +1314,17 @@ export default function App() {
               </div>
               {checkedCount > 0 && (
                 <>
-                  <button onClick={clearChecked} className="clear-btn">
-                    Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
-                  </button>
+                  {confirmClearChecked ? (
+                    <div className="clear-confirm-row">
+                      <span className="clear-confirm-label">Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}?</span>
+                      <button className="clear-confirm-no" onClick={() => setConfirmClearChecked(false)}>No</button>
+                      <button className="clear-confirm-yes" onClick={() => { setConfirmClearChecked(false); clearChecked() }}>Yes</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmClearChecked(true)} className="clear-btn">
+                      Clear {checkedCount} checked item{checkedCount !== 1 ? 's' : ''}
+                    </button>
+                  )}
                   <div className="checked-container">
                     <ul>{checkedSorted.map(renderItem)}</ul>
                   </div>

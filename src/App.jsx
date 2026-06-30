@@ -338,7 +338,6 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
       className={`history-item${onList ? ' on-list' : ''}${isDragging ? ' dragging' : ''}`}
       style={sortableStyle}
       {...sortableAttributes}
-      {...sortableListeners}
     >
       <div className="swipe-wrapper">
         <button
@@ -348,6 +347,9 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
         <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}
           onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0); return }; onInfo(h) }}
         >
+          {sortableListeners && (
+            <span className="drag-handle history-drag-handle" {...sortableListeners} onClick={e => e.stopPropagation()}>⠿</span>
+          )}
           <span className="history-name">{h.name}</span>
           {h.is_favourite && <span className="history-fav">★</span>}
           {onList ? <span className="history-on-list-badge">On list</span>
@@ -598,7 +600,7 @@ export default function App() {
   )
 
   const historySensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 

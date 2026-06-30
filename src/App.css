@@ -1516,11 +1516,6 @@ header h1 {
   overflow: visible;
 }
 
-.history-drag-handle {
-  padding: 0.25rem 0.35rem;
-  margin-left: -0.25rem;
-}
-
 .history-item-row {
   display: flex;
   align-items: center;

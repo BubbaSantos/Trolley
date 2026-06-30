@@ -1310,6 +1310,16 @@ header h1 {
   color: var(--text-muted);
   margin-left: auto;
 }
+.detail-stat-reset {
+  background: none;
+  border: none;
+  font-size: 0.78rem;
+  color: var(--text-ghost);
+  cursor: pointer;
+  padding: 0.2rem 0 0.2rem 0.75rem;
+  opacity: 0.7;
+}
+.detail-stat-reset:active { opacity: 1; }
 
 .detail-fav-toggle {
   font-size: 1.25rem;

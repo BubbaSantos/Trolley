@@ -818,6 +818,15 @@ export default function App() {
     }
   }
 
+  async function resetBoughtCount(itemName) {
+    const { name: cleanName } = parseItemName(itemName)
+    const existing = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
+    if (!existing) return
+    const updated = { ...existing, count: 0 }
+    setHistory(prev => prev.map(h => h.name.toLowerCase() === cleanName.toLowerCase() ? updated : h))
+    if (navigator.onLine) await supabase.from('list_history').upsert(updated, { onConflict: 'list_code,name' })
+  }
+
   // --- Item detail sheet ---
   function openDetail(item) {
     const { qty, name: baseName } = parseItemName(item.name)
@@ -855,14 +864,22 @@ export default function App() {
     const { name: oldBase } = parseItemName(detailItem.name)
     const { name: newBase } = parseItemName(newName)
     if (oldBase.toLowerCase() !== newBase.toLowerCase()) {
-      const existing = history.find(h => h.name.toLowerCase() === oldBase.toLowerCase())
-      if (existing) {
-        const migrated = { ...existing, name: newBase }
+      const existingOld = history.find(h => h.name.toLowerCase() === oldBase.toLowerCase())
+      const existingNew = history.find(h => h.name.toLowerCase() === newBase.toLowerCase())
+      if (existingOld && !existingNew) {
+        const migrated = { ...existingOld, name: newBase }
         setHistory(prev => prev.map(h => h.name.toLowerCase() === oldBase.toLowerCase() ? migrated : h))
         if (navigator.onLine) {
-          await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existing.name)
+          await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
           await supabase.from('list_history').upsert(migrated, { onConflict: 'list_code,name' })
         }
+      } else if (existingOld && existingNew) {
+        setHistory(prev => prev.filter(h => h.name.toLowerCase() !== oldBase.toLowerCase()))
+        if (navigator.onLine) await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
+      } else if (!existingNew) {
+        const newEntry = { list_code: listCode, name: newBase, category_id: detailItem.category_id, count: 0, last_used: new Date().toISOString(), is_favourite: false }
+        setHistory(prev => [...prev, newEntry])
+        if (navigator.onLine) await supabase.from('list_history').upsert(newEntry, { onConflict: 'list_code,name' })
       }
     }
   }
@@ -1096,6 +1113,7 @@ export default function App() {
                       <div className="detail-cat-row detail-stat-row">
                         <span className="detail-cat-label">Times bought</span>
                         <span className="detail-stat-value">{count}</span>
+                        <button className="detail-stat-reset" onClick={() => resetBoughtCount(detailItem.name)}>Reset</button>
                       </div>
                     )}
                     <button className="detail-cat-row" onClick={() => toggleFavourite(detailItem.name)}>

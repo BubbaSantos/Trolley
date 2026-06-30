@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.7'
+const VERSION = '2.14.8'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -918,6 +918,18 @@ export default function App() {
     await loadAndSubscribe(code)
   }
 
+  function historyOrderIndex(name) {
+    const idx = historyOrder.indexOf(name)
+    return idx === -1 ? Number.MAX_SAFE_INTEGER : idx
+  }
+
+  function compareHistoryForSuggestions(a, b) {
+    if (a.is_favourite && b.is_favourite) return historyOrderIndex(a.name) - historyOrderIndex(b.name)
+    if (a.is_favourite && !b.is_favourite) return -1
+    if (!a.is_favourite && b.is_favourite) return 1
+    return (b.count || 1) - (a.count || 1)
+  }
+
   function getHistorySuggestions(exclude = []) {
     const onList = new Set([
       ...items.map(i => parseItemName(i.name).name.toLowerCase()),
@@ -925,11 +937,7 @@ export default function App() {
     ])
     const histSugs = history
       .filter(h => !onList.has(h.name.toLowerCase()) && !isDismissed(h.name))
-      .sort((a, b) => {
-        if (a.is_favourite && !b.is_favourite) return -1
-        if (!a.is_favourite && b.is_favourite) return 1
-        return (b.count || 1) - (a.count || 1)
-      })
+      .sort(compareHistoryForSuggestions)
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
@@ -969,11 +977,7 @@ export default function App() {
     const onList = new Set(items.map(i => parseItemName(i.name).name.toLowerCase()))
     const historyMatches = history
       .filter(h => h.name.toLowerCase().includes(search) && !onList.has(h.name.toLowerCase()) && !isDismissed(h.name))
-      .sort((a, b) => {
-        if (a.is_favourite && !b.is_favourite) return -1
-        if (!a.is_favourite && b.is_favourite) return 1
-        return (b.count || 1) - (a.count || 1)
-      })
+      .sort(compareHistoryForSuggestions)
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
@@ -1276,11 +1280,7 @@ export default function App() {
   const checkedSorted = items.filter(i => i.checked).sort((a, b) => (b.checked_at || 0) - (a.checked_at || 0))
   const filteredHistory = history
     .filter(h => !historySearch || h.name.toLowerCase().includes(historySearch.toLowerCase()))
-    .sort((a, b) => {
-      if (a.is_favourite && !b.is_favourite) return -1
-      if (!a.is_favourite && b.is_favourite) return 1
-      return (b.count || 1) - (a.count || 1)
-    })
+    .sort(compareHistoryForSuggestions)
 
   const displayHistory = historySearch
     ? filteredHistory

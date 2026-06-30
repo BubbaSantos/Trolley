@@ -25,6 +25,12 @@
       "color": "rgb(185, 28, 28)"
     },
     {
+      "id": "baking",
+      "name": "Baking",
+      "icon": "🧁",
+      "color": "#c2782f"
+    },
+    {
       "id": "tins",
       "name": "Tins, Cans & Packets",
       "icon": "📦",
@@ -1208,7 +1214,7 @@
     },
     {
       "name": "Bread Flour",
-      "category": "tins",
+      "category": "baking",
       "keywords": [
         "bread flour",
         "flour",
@@ -1258,7 +1264,7 @@
     },
     {
       "name": "Cornflour",
-      "category": "tins",
+      "category": "baking",
       "keywords": [
         "cornflour",
         "cornstarch",
@@ -1297,7 +1303,7 @@
     },
     {
       "name": "Plain Flour",
-      "category": "tins",
+      "category": "baking",
       "keywords": [
         "flour",
         "plain flour",
@@ -1307,7 +1313,7 @@
     },
     {
       "name": "Self Raising Flour",
-      "category": "tins",
+      "category": "baking",
       "keywords": [
         "self raising flour",
         "flour",
@@ -1485,7 +1491,7 @@
     },
     {
       "name": "Caster Sugar",
-      "category": "tins",
+      "category": "baking",
       "keywords": [
         "caster sugar",
         "sugar",
@@ -1494,7 +1500,7 @@
     },
     {
       "name": "Granulated Sugar",
-      "category": "tins",
+      "category": "baking",
       "keywords": [
         "granulated sugar",
         "sugar",
@@ -2686,6 +2692,69 @@
         "wipes",
         "baby wipes",
         "cleaning"
+      ]
+    },
+    {
+      "name": "Baking Powder",
+      "category": "baking",
+      "keywords": [
+        "baking powder",
+        "raising agent",
+        "bake"
+      ]
+    },
+    {
+      "name": "Bicarbonate of Soda",
+      "category": "baking",
+      "keywords": [
+        "bicarbonate",
+        "baking soda",
+        "bicarb"
+      ]
+    },
+    {
+      "name": "Icing Sugar",
+      "category": "baking",
+      "keywords": [
+        "icing sugar",
+        "powdered sugar",
+        "frosting"
+      ]
+    },
+    {
+      "name": "Vanilla Extract",
+      "category": "baking",
+      "keywords": [
+        "vanilla",
+        "extract",
+        "flavouring"
+      ]
+    },
+    {
+      "name": "Cocoa Powder",
+      "category": "baking",
+      "keywords": [
+        "cocoa",
+        "chocolate powder",
+        "baking cocoa"
+      ]
+    },
+    {
+      "name": "Yeast",
+      "category": "baking",
+      "keywords": [
+        "yeast",
+        "dried yeast",
+        "bread yeast"
+      ]
+    },
+    {
+      "name": "Dark Chocolate",
+      "category": "baking",
+      "keywords": [
+        "dark chocolate",
+        "baking chocolate",
+        "chocolate chips"
       ]
     }
   ]

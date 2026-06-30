@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.10.1'
+const VERSION = '2.11.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -60,6 +60,29 @@ const COMMON_ITEMS = [
   { name: 'Toothpaste',         category: 'other' },
   { name: 'Shampoo',            category: 'other' },
 ]
+
+const ACCENTS = [
+  { id: 'indigo',  label: 'Indigo',  color: '#6366f1', hover: '#4f46e5', light: '#818cf8', rgb: '99,102,241' },
+  { id: 'purple',  label: 'Purple',  color: '#8b5cf6', hover: '#7c3aed', light: '#a78bfa', rgb: '139,92,246' },
+  { id: 'pink',    label: 'Pink',    color: '#ec4899', hover: '#db2777', light: '#f472b6', rgb: '236,72,153' },
+  { id: 'rose',    label: 'Rose',    color: '#f43f5e', hover: '#e11d48', light: '#fb7185', rgb: '244,63,94' },
+  { id: 'orange',  label: 'Orange',  color: '#f97316', hover: '#ea580c', light: '#fb923c', rgb: '249,115,22' },
+  { id: 'amber',   label: 'Amber',   color: '#f59e0b', hover: '#d97706', light: '#fbbf24', rgb: '245,158,11' },
+  { id: 'emerald', label: 'Emerald', color: '#10b981', hover: '#059669', light: '#34d399', rgb: '16,185,129' },
+  { id: 'teal',    label: 'Teal',    color: '#14b8a6', hover: '#0d9488', light: '#2dd4bf', rgb: '20,184,166' },
+  { id: 'sky',     label: 'Sky',     color: '#0ea5e9', hover: '#0284c7', light: '#38bdf8', rgb: '14,165,233' },
+  { id: 'cyan',    label: 'Cyan',    color: '#06b6d4', hover: '#0891b2', light: '#22d3ee', rgb: '6,182,212' },
+]
+
+function applyAccent(id) {
+  const a = ACCENTS.find(x => x.id === id) || ACCENTS[0]
+  const r = document.documentElement
+  r.style.setProperty('--accent', a.color)
+  r.style.setProperty('--accent-hover', a.hover)
+  r.style.setProperty('--accent-light', a.light)
+  r.style.setProperty('--accent-glow', `rgba(${a.rgb},0.15)`)
+  r.style.setProperty('--accent-tint', `rgba(${a.rgb},0.1)`)
+}
 
 function getCachedItems(code) {
   try { return JSON.parse(localStorage.getItem(`trolley_items_${code}`) || '[]') } catch { return [] }
@@ -297,6 +320,59 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList }) {
   )
 }
 
+function SuggestionHistoryItem({ p, inputQty, onAdd, onDismiss }) {
+  const [tx, setTxState] = useState(0)
+  const [animating, setAnimating] = useState(false)
+  const txRef = useRef(0)
+  const rowRef = useRef(null)
+  const onDismissRef = useRef(onDismiss)
+  const onAddRef = useRef(onAdd)
+  useEffect(() => { onDismissRef.current = onDismiss }, [onDismiss])
+  useEffect(() => { onAddRef.current = onAdd }, [onAdd])
+
+  function setTx(v) { txRef.current = v; setTxState(v) }
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    let startX = 0, startY = 0, dir = null
+    function onStart(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; setAnimating(false) }
+    function onMove(e) {
+      const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
+      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
+      if (dir !== 'h') return
+      e.preventDefault()
+      setTx(Math.min(0, dx))
+    }
+    function onEnd() {
+      if (dir !== 'h') return
+      if (txRef.current < -60) {
+        setAnimating(true); setTx(-window.innerWidth)
+        setTimeout(() => onDismissRef.current(p.name), 250)
+      } else { setAnimating(true); setTx(0) }
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchmove', onMove); el.removeEventListener('touchend', onEnd) }
+  }, [p.name])
+
+  return (
+    <div
+      ref={rowRef}
+      className={`suggestion-item suggestion-history-item${animating ? ' animating' : ''}`}
+      style={{ transform: `translateX(${tx}px)` }}
+      onClick={() => { if (txRef.current !== 0) { setAnimating(true); setTx(0); return }; onAddRef.current(p) }}
+    >
+      <span className="suggestion-name">
+        {inputQty && <span className="suggestion-qty">{inputQty} </span>}
+        {p.name}
+      </span>
+      <span className="suggestion-dismiss-hint">← dismiss</span>
+    </div>
+  )
+}
+
 function SortableCatItem({ id, cat }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
@@ -424,6 +500,11 @@ export default function App() {
     document.documentElement.setAttribute('data-theme', saved)
     return saved
   })
+  const [accentId, setAccentId] = useState(() => {
+    const saved = localStorage.getItem('trolley_accent') || 'indigo'
+    applyAccent(saved)
+    return saved
+  })
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
@@ -437,6 +518,7 @@ export default function App() {
   const historyRef = useRef([])
   const keepSuggestionsRef = useRef(false)
   const strikeTimerRef = useRef({})
+  const dismissedRef = useRef(new Map())
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
@@ -470,6 +552,28 @@ export default function App() {
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
 
   function toggleTheme() { setTheme(t => t === 'dark' ? 'light' : 'dark') }
+
+  function changeAccent(id) {
+    setAccentId(id)
+    applyAccent(id)
+    localStorage.setItem('trolley_accent', id)
+  }
+
+  function isDismissed(name) {
+    const exp = dismissedRef.current.get(name.toLowerCase())
+    if (!exp) return false
+    if (Date.now() > exp) { dismissedRef.current.delete(name.toLowerCase()); return false }
+    return true
+  }
+
+  function dismissSuggestion(name) {
+    dismissedRef.current.set(name.toLowerCase(), Date.now() + 5 * 60 * 1000)
+    if (input.length < 2) {
+      setSuggestions(getHistorySuggestions())
+    } else {
+      setSuggestions(prev => prev.filter(s => s.name.toLowerCase() !== name.toLowerCase()))
+    }
+  }
 
   function markEntering(id) {
     setEnteringIds(prev => new Set([...prev, id]))
@@ -623,7 +727,7 @@ export default function App() {
       ...exclude.map(n => n.toLowerCase()),
     ])
     const histSugs = history
-      .filter(h => !onList.has(h.name.toLowerCase()))
+      .filter(h => !onList.has(h.name.toLowerCase()) && !isDismissed(h.name))
       .sort((a, b) => {
         if (a.is_favourite && !b.is_favourite) return -1
         if (!a.is_favourite && b.is_favourite) return 1
@@ -637,7 +741,7 @@ export default function App() {
     if (histSugs.length >= 5) return histSugs
     const alreadyShown = new Set([...onList, ...histSugs.map(s => s.name.toLowerCase())])
     const fallback = COMMON_ITEMS
-      .filter(item => !alreadyShown.has(item.name.toLowerCase()))
+      .filter(item => !alreadyShown.has(item.name.toLowerCase()) && !isDismissed(item.name))
       .slice(0, 5 - histSugs.length)
       .map(item => ({ name: item.name, category: item.category, fromHistory: true, count: 0 }))
     return [...histSugs, ...fallback]
@@ -666,7 +770,7 @@ export default function App() {
     const search = cleanName.toLowerCase()
     const onList = new Set(items.map(i => parseItemName(i.name).name.toLowerCase()))
     const historyMatches = history
-      .filter(h => h.name.toLowerCase().includes(search) && !onList.has(h.name.toLowerCase()))
+      .filter(h => h.name.toLowerCase().includes(search) && !onList.has(h.name.toLowerCase()) && !isDismissed(h.name))
       .sort((a, b) => {
         if (a.is_favourite && !b.is_favourite) return -1
         if (!a.is_favourite && b.is_favourite) return 1
@@ -1042,16 +1146,22 @@ export default function App() {
                   </p>
                 )}
                 {suggestions.map(p => (
-                  <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
-                    <span className="suggestion-name">
-                      {inputQty && <span className="suggestion-qty">{inputQty} </span>}
-                      {p.name}
-                    </span>
-                    <span className="suggestion-cat">
-                      {getCat(p.category)?.icon ?? '🛍️'} {getCat(p.category)?.name ?? 'Other'}
-                      {p.fromHistory && p.count > 1 && <span className="suggestion-count"> ×{p.count}</span>}
-                    </span>
-                  </button>
+                  p.fromHistory ? (
+                    <SuggestionHistoryItem
+                      key={p.name} p={p} inputQty={inputQty}
+                      onAdd={addItem} onDismiss={dismissSuggestion}
+                    />
+                  ) : (
+                    <button key={p.name} onClick={() => addItem(p)} className="suggestion-item">
+                      <span className="suggestion-name">
+                        {inputQty && <span className="suggestion-qty">{inputQty} </span>}
+                        {p.name}
+                      </span>
+                      <span className="suggestion-cat">
+                        {getCat(p.category)?.icon ?? '🛍️'} {getCat(p.category)?.name ?? 'Other'}
+                      </span>
+                    </button>
+                  )
                 ))}
                 {input.trim() && (
                   <button onClick={() => addCustomItem(input.trim())} className="suggestion-item suggestion-custom">
@@ -1187,6 +1297,9 @@ export default function App() {
                   </>
                 )
               })()}
+              <button className="detail-delete-btn" onClick={() => { const id = detailItem.id; setDetailItem(null); deleteItem(id) }}>
+                Delete item
+              </button>
             </div>
           </BottomSheet>
         </div>
@@ -1261,7 +1374,7 @@ export default function App() {
                   <span className="sheet-back">‹</span>
                 )}
                 <p className="sheet-title">
-                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : 'Manage Categories'}
+                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : 'Manage Categories'}
                 </p>
               </div>
               <button onClick={closeSettings} className="sheet-close">✕</button>
@@ -1269,12 +1382,13 @@ export default function App() {
             <div className="sheet-body">
               {settingsView === 'main' && (
                 <>
-                  <div className="settings-row">
-                    <span className="settings-row-label">Appearance</span>
-                    <button className="theme-toggle-btn" onClick={toggleTheme}>
-                      {theme === 'dark' ? '☀️ Light mode' : '🌙 Dark mode'}
-                    </button>
-                  </div>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('appearance')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Appearance</span>
+                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>{theme === 'dark' ? 'Dark' : 'Light'} · {ACCENTS.find(a => a.id === accentId)?.label ?? 'Indigo'}</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
                   <button className="settings-nav-item" onClick={() => setSettingsView('list')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">List Code</span>
@@ -1296,6 +1410,28 @@ export default function App() {
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
+                </>
+              )}
+              {settingsView === 'appearance' && (
+                <>
+                  <div className="settings-row">
+                    <span className="settings-row-label">Mode</span>
+                    <button className="theme-toggle-btn" onClick={toggleTheme}>
+                      {theme === 'dark' ? '☀️ Light' : '🌙 Dark'}
+                    </button>
+                  </div>
+                  <div className="settings-section-label" style={{ padding: '1rem 1.25rem 0.5rem' }}>Accent colour</div>
+                  <div className="accent-swatches">
+                    {ACCENTS.map(a => (
+                      <button
+                        key={a.id}
+                        title={a.label}
+                        className={`accent-swatch${accentId === a.id ? ' selected' : ''}`}
+                        style={{ background: a.color }}
+                        onClick={() => changeAccent(a.id)}
+                      />
+                    ))}
+                  </div>
                 </>
               )}
               {settingsView === 'list' && (

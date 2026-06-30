@@ -107,6 +107,37 @@ function upsertCustomProduct(name, categoryId) {
   try { localStorage.setItem('trolley_custom_products', JSON.stringify(existing)) } catch {}
 }
 
+function getHiddenProducts() {
+  try { return JSON.parse(localStorage.getItem('trolley_hidden_products') || '[]') } catch { return [] }
+}
+function hideProduct(name) {
+  const h = getHiddenProducts(), lc = name.toLowerCase()
+  if (!h.includes(lc)) { h.push(lc); try { localStorage.setItem('trolley_hidden_products', JSON.stringify(h)) } catch {} }
+}
+function removeCustomProduct(name) {
+  const lc = name.toLowerCase()
+  const updated = getCustomProducts().filter(p => p.name.toLowerCase() !== lc)
+  try { localStorage.setItem('trolley_custom_products', JSON.stringify(updated)) } catch {}
+}
+
+function getMergedProductList() {
+  const custom = getCustomProducts()
+  const hidden = getHiddenProducts()
+  const customMap = new Map(custom.map(p => [p.name.toLowerCase(), p.category]))
+  const builtInNames = new Set(products.products.map(p => p.name.toLowerCase()))
+  const builtIns = products.products
+    .filter(p => !hidden.includes(p.name.toLowerCase()))
+    .map(p => ({
+      name: p.name,
+      category_id: customMap.get(p.name.toLowerCase()) || p.category,
+      isBuiltIn: true,
+    }))
+  const customOnly = custom
+    .filter(p => !builtInNames.has(p.name.toLowerCase()) && !hidden.includes(p.name.toLowerCase()))
+    .map(p => ({ name: p.name, category_id: p.category || 'other', isBuiltIn: false }))
+  return [...builtIns, ...customOnly].sort((a, b) => a.name.localeCompare(b.name))
+}
+
 function getCustomCategories() {
   try { return JSON.parse(localStorage.getItem('trolley_custom_cats') || '[]') } catch { return [] }
 }
@@ -611,25 +642,27 @@ export default function App() {
     const newCatId = settingsEditCatId
     if (!newName) return
 
+    const nameChanged = newName.toLowerCase() !== oldName.toLowerCase()
+
+    if (nameChanged) {
+      if (settingsEditItem.isBuiltIn) {
+        hideProduct(oldName)
+      } else {
+        removeCustomProduct(oldName)
+      }
+    }
     upsertCustomProduct(newName, newCatId)
 
-    const nameChanged = newName.toLowerCase() !== oldName.toLowerCase()
     const existingOld = history.find(h => h.name.toLowerCase() === oldName.toLowerCase())
     const existingNew = nameChanged ? history.find(h => h.name.toLowerCase() === newName.toLowerCase()) : null
-
     if (existingOld) {
       const merged = {
-        ...existingOld,
-        name: newName,
-        category_id: newCatId,
+        ...existingOld, name: newName, category_id: newCatId,
         count: Math.max(existingOld.count || 0, existingNew?.count || 0),
         is_favourite: existingOld.is_favourite || existingNew?.is_favourite || false,
       }
       setHistory(prev => [
-        ...prev.filter(h =>
-          h.name.toLowerCase() !== oldName.toLowerCase() &&
-          h.name.toLowerCase() !== newName.toLowerCase()
-        ),
+        ...prev.filter(h => h.name.toLowerCase() !== oldName.toLowerCase() && h.name.toLowerCase() !== newName.toLowerCase()),
         merged,
       ])
       if (navigator.onLine) {
@@ -642,8 +675,7 @@ export default function App() {
     const affectedItems = items.filter(i => parseItemName(i.name).name.toLowerCase() === oldName.toLowerCase())
     for (const item of affectedItems) {
       const { qty } = parseItemName(item.name)
-      const updatedStoredName = qty ? `${qty} ${newName}` : newName
-      const update = { name: updatedStoredName, category: cat?.name ?? 'Other', category_id: newCatId }
+      const update = { name: qty ? `${qty} ${newName}` : newName, category: cat?.name ?? 'Other', category_id: newCatId }
       setItems(prev => { const next = prev.map(i => i.id === item.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
       if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', item.id)
       else enqueue({ type: 'UPDATE', id: item.id, data: update })
@@ -1485,13 +1517,7 @@ export default function App() {
               )}
               {settingsView === 'items' && (() => {
                 const q = settingsItemSearch.toLowerCase()
-                const histNames = new Set(history.map(h => h.name.toLowerCase()))
-                const customOnly = getCustomProducts().filter(p => !histNames.has(p.name.toLowerCase()))
-                const allEntries = [
-                  ...history.map(h => ({ name: h.name, category_id: h.category_id || 'other', is_favourite: h.is_favourite || false, count: h.count || 0, fromHistory: true })),
-                  ...customOnly.map(p => ({ name: p.name, category_id: p.category || 'other', is_favourite: false, count: 0, fromHistory: false })),
-                ]
-                  .sort((a, b) => a.name.localeCompare(b.name))
+                const allEntries = getMergedProductList()
                   .filter(e => !q || e.name.toLowerCase().includes(q))
                 return (
                   <>
@@ -1503,7 +1529,7 @@ export default function App() {
                       />
                     </div>
                     {allEntries.length === 0 ? (
-                      <p className="settings-item-empty">{settingsItemSearch ? 'No matches' : 'No item history yet'}</p>
+                      <p className="settings-item-empty">No matches</p>
                     ) : (
                       <ul className="settings-item-list">
                         {allEntries.map(entry => (

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.5'
+const VERSION = '2.14.6'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -604,11 +604,6 @@ export default function App() {
   const getCat = (id) => allCategories.find(c => c.id === id)
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
-
-  const historySensors = useSensors(
     useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -1454,7 +1449,7 @@ export default function App() {
               })}
             </ul>
           ) : (
-            <DndContext sensors={historySensors} collisionDetection={closestCenter}
+            <DndContext sensors={sensors} collisionDetection={closestCenter}
               onDragStart={() => { historyDragActiveRef.current = true }}
               onDragEnd={(e) => { historyDragActiveRef.current = false; handleHistoryDragEnd(e) }}
               onDragCancel={() => { historyDragActiveRef.current = false }}

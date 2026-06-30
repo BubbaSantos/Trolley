@@ -1101,7 +1101,6 @@ header h1 {
   border-bottom: 1px solid var(--border-subtle);
   transition: background 0.1s;
   cursor: grab;
-  touch-action: none;
   user-select: none;
 }
 
@@ -1116,7 +1115,6 @@ header h1 {
   font-size: 1.1rem;
   cursor: grab;
   padding: 0.25rem;
-  touch-action: none;
   user-select: none;
   flex-shrink: 0;
   line-height: 1;

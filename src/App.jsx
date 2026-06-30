@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import {
-  DndContext, closestCenter, PointerSensor, TouchSensor,
+  DndContext, closestCenter, PointerSensor,
   KeyboardSensor, useSensor, useSensors,
 } from '@dnd-kit/core'
 import {
@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.6'
+const VERSION = '2.14.7'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -297,7 +297,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   )
 }
 
-function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sortableStyle, sortableAttributes, sortableListeners, isDragging, dragActiveRef }) {
+function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sortableStyle, sortableAttributes, sortableListeners, isDragging }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -307,19 +307,11 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
   function setTx(v) { txRef.current = v; _setTx(v) }
 
   useEffect(() => {
-    if (isDragging) { setAnimate(false); setTx(0) }
-  }, [isDragging])
-
-  useEffect(() => {
     const el = rowRef.current
     if (!el) return
     let startX = 0, startY = 0, dir = null, baseX = 0
-    function onStart(e) {
-      if (dragActiveRef?.current) return
-      startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false)
-    }
+    function onStart(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false) }
     function onMove(e) {
-      if (dragActiveRef?.current) return
       const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
       if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
       if (dir !== 'h') return
@@ -327,7 +319,6 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
       setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
     }
     function onEnd() {
-      if (dragActiveRef?.current) return
       if (dir !== 'h') return
       setAnimate(true)
       const t = txRef.current
@@ -347,7 +338,6 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
       className={`history-item${onList ? ' on-list' : ''}${isDragging ? ' dragging' : ''}`}
       style={sortableStyle}
       {...sortableAttributes}
-      {...sortableListeners}
     >
       <div className="swipe-wrapper">
         <button
@@ -357,10 +347,13 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
         <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}
           onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0); return }; onInfo(h) }}
         >
+          {sortableListeners && (
+            <span className="drag-handle history-drag-handle" {...sortableListeners} onClick={e => e.stopPropagation()}>⠿</span>
+          )}
           <span className="history-name">{h.name}</span>
-          {h.is_favourite && <span className="history-fav" onPointerDown={e => e.stopPropagation()}>★</span>}
+          {h.is_favourite && <span className="history-fav">★</span>}
           {onList ? <span className="history-on-list-badge">On list</span>
-            : <button className="history-add-btn" onPointerDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
+            : <button className="history-add-btn" onClick={e => { e.stopPropagation(); if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
         </div>
       </div>
     </li>
@@ -427,16 +420,16 @@ function SortableCatItem({ id, cat }) {
       ref={setNodeRef}
       className={`cat-order-item${isDragging ? ' dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
-      {...attributes} {...listeners}
+      {...attributes}
     >
-      <span className="drag-handle">⠿</span>
+      <span className="drag-handle" {...listeners}>⠿</span>
       <span className="cat-order-icon">{cat.icon}</span>
       <span className="cat-order-name">{cat.name}</span>
     </li>
   )
 }
 
-function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo, dragActiveRef }) {
+function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: h.name })
   return (
     <SwipeHistoryItem
@@ -446,7 +439,6 @@ function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo, dragActiveRef
       sortableAttributes={attributes}
       sortableListeners={listeners}
       isDragging={isDragging}
-      dragActiveRef={dragActiveRef}
     />
   )
 }
@@ -593,7 +585,6 @@ export default function App() {
   const strikeTimerRef = useRef({})
   const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
-  const historyDragActiveRef = useRef(false)
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
@@ -604,7 +595,6 @@ export default function App() {
   const getCat = (id) => allCategories.find(c => c.id === id)
 
   const sensors = useSensors(
-    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
@@ -1449,17 +1439,12 @@ export default function App() {
               })}
             </ul>
           ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter}
-              onDragStart={() => { historyDragActiveRef.current = true }}
-              onDragEnd={(e) => { historyDragActiveRef.current = false; handleHistoryDragEnd(e) }}
-              onDragCancel={() => { historyDragActiveRef.current = false }}
-            >
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleHistoryDragEnd}>
               <SortableContext items={displayHistory.map(h => h.name)} strategy={verticalListSortingStrategy}>
                 <ul className="history-list">
                   {displayHistory.map(h => {
                     const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
                     return <SortableHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
-                      dragActiveRef={historyDragActiveRef}
                       onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
                   })}
                 </ul>

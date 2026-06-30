@@ -1115,9 +1115,15 @@ header h1 {
   font-size: 1.1rem;
   cursor: grab;
   padding: 0.25rem;
+  touch-action: none;
   user-select: none;
   flex-shrink: 0;
   line-height: 1;
+}
+
+.history-drag-handle {
+  padding: 0.5rem 0.4rem 0.5rem 0;
+  margin-left: -0.15rem;
 }
 
 .drag-handle:active { cursor: grabbing; color: var(--text-muted); }

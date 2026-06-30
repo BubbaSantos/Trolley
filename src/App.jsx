@@ -811,6 +811,16 @@ export default function App() {
     if (navigator.onLine) await supabase.from('list_history').delete().eq('list_code', listCode)
   }
 
+  async function resetAllCounts() {
+    setHistory(prev => prev.map(h => ({ ...h, count: 0 })))
+    closeSettings()
+    if (navigator.onLine) {
+      await Promise.all(
+        history.map(h => supabase.from('list_history').update({ count: 0 }).eq('list_code', listCode).eq('name', h.name))
+      )
+    }
+  }
+
   async function deleteHistoryItem(name) {
     setHistory(prev => prev.filter(h => h.name !== name))
     if (navigator.onLine) {
@@ -1116,7 +1126,6 @@ export default function App() {
                       <div className="detail-cat-row detail-stat-row">
                         <span className="detail-cat-label">Times bought</span>
                         <span className="detail-stat-value">{count}</span>
-                        <button className="detail-stat-reset" onClick={() => resetBoughtCount(detailItem.name)}>Reset</button>
                       </div>
                     )}
                     {lastBought && (
@@ -1200,13 +1209,13 @@ export default function App() {
             <div className="sheet-header">
               <div
                 style={{ display: 'flex', alignItems: 'center', cursor: settingsView !== 'main' ? 'pointer' : 'default' }}
-                onClick={settingsView !== 'main' ? () => { setSettingsView('main'); setAddingCategory(false) } : undefined}
+                onClick={settingsView !== 'main' ? () => { setSettingsView('main'); setAddingCategory(false); setConfirming(null) } : undefined}
               >
                 {settingsView !== 'main' && (
                   <span className="sheet-back">‹</span>
                 )}
                 <p className="sheet-title">
-                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : 'Manage Categories'}
+                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : 'Manage Categories'}
                 </p>
               </div>
               <button onClick={closeSettings} className="sheet-close">✕</button>
@@ -1234,29 +1243,13 @@ export default function App() {
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
-                  <p className="settings-divider-label" style={{ marginTop: '1.25rem' }}>Reset</p>
-                  {confirming === 'list' ? (
-                    <div className="confirm-row">
-                      <span className="confirm-label">Clear entire list?</span>
-                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
-                      <button className="confirm-ok-btn" onClick={clearList}>Clear</button>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('reset')} style={{ marginTop: '0.5rem' }}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Reset</span>
+                      <span className="settings-nav-sub">Clear list, history or counts</span>
                     </div>
-                  ) : (
-                    <button className="settings-action-btn danger" onClick={() => requestConfirm('list')}>
-                      Clear list
-                    </button>
-                  )}
-                  {confirming === 'history' ? (
-                    <div className="confirm-row" style={{ marginTop: '0.5rem' }}>
-                      <span className="confirm-label">Clear all history?</span>
-                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
-                      <button className="confirm-ok-btn" onClick={clearHistory}>Clear</button>
-                    </div>
-                  ) : (
-                    <button className="settings-action-btn danger" onClick={() => requestConfirm('history')} style={{ marginTop: '0.5rem' }}>
-                      Clear history
-                    </button>
-                  )}
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
                 </>
               )}
               {settingsView === 'list' && (
@@ -1279,6 +1272,43 @@ export default function App() {
                   <button className="settings-action-btn danger" onClick={() => { leaveList(); closeSettings() }}>
                     Leave this list
                   </button>
+                </>
+              )}
+              {settingsView === 'reset' && (
+                <>
+                  {confirming === 'list' ? (
+                    <div className="confirm-row">
+                      <span className="confirm-label">Clear entire list?</span>
+                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
+                      <button className="confirm-ok-btn" onClick={clearList}>Clear</button>
+                    </div>
+                  ) : (
+                    <button className="settings-action-btn danger" onClick={() => requestConfirm('list')}>
+                      Clear list
+                    </button>
+                  )}
+                  {confirming === 'history' ? (
+                    <div className="confirm-row" style={{ marginTop: '0.5rem' }}>
+                      <span className="confirm-label">Clear all history?</span>
+                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
+                      <button className="confirm-ok-btn" onClick={clearHistory}>Clear</button>
+                    </div>
+                  ) : (
+                    <button className="settings-action-btn danger" onClick={() => requestConfirm('history')} style={{ marginTop: '0.5rem' }}>
+                      Clear history
+                    </button>
+                  )}
+                  {confirming === 'counts' ? (
+                    <div className="confirm-row" style={{ marginTop: '0.5rem' }}>
+                      <span className="confirm-label">Reset all counts?</span>
+                      <button className="confirm-cancel-btn" onClick={() => setConfirming(null)}>Cancel</button>
+                      <button className="confirm-ok-btn" onClick={resetAllCounts}>Reset</button>
+                    </div>
+                  ) : (
+                    <button className="settings-action-btn danger" onClick={() => requestConfirm('counts')} style={{ marginTop: '0.5rem' }}>
+                      Reset bought counts
+                    </button>
+                  )}
                 </>
               )}
               {settingsView === 'categories' && (

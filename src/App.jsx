@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.13.1'
+const VERSION = '2.13.2'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -263,10 +263,11 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   return (
     <div className={`item-row-outer${isEntering ? ' item-enter' : ''}${isExiting ? ' item-exit' : ''}`}>
       <div className="swipe-wrapper">
-        <button className="swipe-delete-btn" onClick={() => {
-          setAnimate(true); setTx(-window.innerWidth)
-          setTimeout(() => onDeleteRef.current(item.id), 260)
-        }}>Delete</button>
+        <button
+          className={`swipe-delete-btn${animate ? ' animate' : ''}`}
+          style={{ transform: `translateX(${SNAP + tx}px)` }}
+          onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(item.id), 260) }}
+        >Delete</button>
         <div
           ref={rowRef}
           className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
@@ -335,7 +336,11 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
   return (
     <li className={`history-item${onList ? ' on-list' : ''}`}>
       <div className="swipe-wrapper">
-        <button className="swipe-delete-btn" onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}>Delete</button>
+        <button
+          className={`swipe-delete-btn${animate ? ' animate' : ''}`}
+          style={{ transform: `translateX(${SNAP + tx}px)` }}
+          onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}
+        >Delete</button>
         <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}
           onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0); return }; onInfo(h) }}
         >

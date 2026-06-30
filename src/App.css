@@ -465,7 +465,6 @@ header h1 {
   position: relative;
   border-radius: 0.6rem;
   overflow: hidden;
-  background: var(--red);
 }
 
 .swipe-delete-btn {
@@ -473,16 +472,21 @@ header h1 {
   right: 0;
   top: 0;
   bottom: 0;
-  background: transparent;
+  width: 80px;
+  background: var(--red);
   color: white;
   font-size: 0.875rem;
   font-weight: 700;
-  padding: 0 1.25rem;
   border: none;
   cursor: pointer;
   letter-spacing: 0.02em;
   display: flex;
   align-items: center;
+  justify-content: center;
+}
+
+.swipe-delete-btn.animate {
+  transition: transform 0.25s ease;
 }
 
 .swipe-row {

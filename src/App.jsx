@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.13.5'
+const VERSION = '2.13.6'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -297,7 +297,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   )
 }
 
-function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
+function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sortableStyle, sortableAttributes, sortableListeners, isDragging }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -333,7 +333,13 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
   }, [h.name])
 
   return (
-    <li className={`history-item${onList ? ' on-list' : ''}`}>
+    <li
+      ref={sortableRef}
+      className={`history-item${onList ? ' on-list' : ''}${isDragging ? ' dragging' : ''}`}
+      style={sortableStyle}
+      {...sortableAttributes}
+      {...sortableListeners}
+    >
       <div className="swipe-wrapper">
         <button
           className="swipe-delete-btn"
@@ -418,6 +424,20 @@ function SortableCatItem({ id, cat }) {
       <span className="cat-order-icon">{cat.icon}</span>
       <span className="cat-order-name">{cat.name}</span>
     </li>
+  )
+}
+
+function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: h.name })
+  return (
+    <SwipeHistoryItem
+      h={h} onAdd={onAdd} onDelete={onDelete} onList={onList} onInfo={onInfo}
+      sortableRef={setNodeRef}
+      sortableStyle={{ transform: CSS.Transform.toString(transform), transition }}
+      sortableAttributes={attributes}
+      sortableListeners={listeners}
+      isDragging={isDragging}
+    />
   )
 }
 
@@ -521,6 +541,9 @@ export default function App() {
   const [tab, setTab] = useState('list')
   const [historySearch, setHistorySearch] = useState('')
   const [history, setHistory] = useState([])
+  const [historyOrder, setHistoryOrder] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('trolley_history_order') || '[]') } catch { return [] }
+  })
   const [confirming, setConfirming] = useState(null)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false)
   const [confirmClearChecked, setConfirmClearChecked] = useState(false)
@@ -573,9 +596,23 @@ export default function App() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   )
 
+  const historySensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
   function handleDragEnd({ active, over }) {
     if (over && active.id !== over.id) {
       setCategoryOrder(prev => {
+        const oldIndex = prev.indexOf(active.id), newIndex = prev.indexOf(over.id)
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
+  }
+
+  function handleHistoryDragEnd({ active, over }) {
+    if (over && active.id !== over.id) {
+      setHistoryOrder(prev => {
         const oldIndex = prev.indexOf(active.id), newIndex = prev.indexOf(over.id)
         return arrayMove(prev, oldIndex, newIndex)
       })
@@ -590,6 +627,24 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder)) }, [categoryOrder])
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
+  useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
+
+  useEffect(() => {
+    setHistoryOrder(prev => {
+      const histNames = new Set(history.map(h => h.name))
+      const existing = prev.filter(name => histNames.has(name))
+      const existingSet = new Set(existing)
+      const newItems = history
+        .filter(h => !existingSet.has(h.name))
+        .sort((a, b) => {
+          if (a.is_favourite && !b.is_favourite) return -1
+          if (!a.is_favourite && b.is_favourite) return 1
+          return (b.count || 1) - (a.count || 1)
+        })
+        .map(h => h.name)
+      return [...existing, ...newItems]
+    })
+  }, [history])
 
   function toggleTheme() { setTheme(t => t === 'dark' ? 'light' : 'dark') }
 
@@ -1203,6 +1258,10 @@ export default function App() {
       return (b.count || 1) - (a.count || 1)
     })
 
+  const displayHistory = historySearch
+    ? filteredHistory
+    : historyOrder.map(name => history.find(h => h.name === name)).filter(Boolean)
+
   function renderItem(item) {
     return (
       <SwipeItem
@@ -1342,19 +1401,31 @@ export default function App() {
             <input type="text" placeholder="Search history..." value={historySearch}
               onChange={e => setHistorySearch(e.target.value)} className="item-input" autoComplete="off" />
           </div>
-          {filteredHistory.length === 0 ? (
+          {displayHistory.length === 0 ? (
             <div className="empty-state">
               <p>{historySearch ? 'No matching items' : 'No history yet'}</p>
               <p className="empty-hint">{historySearch ? 'Try a different search' : 'Items you tick off or delete will appear here'}</p>
             </div>
-          ) : (
+          ) : historySearch ? (
             <ul className="history-list">
-              {filteredHistory.map(h => {
+              {displayHistory.map(h => {
                 const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
                 return <SwipeHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
                   onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
               })}
             </ul>
+          ) : (
+            <DndContext sensors={historySensors} collisionDetection={closestCenter} onDragEnd={handleHistoryDragEnd}>
+              <SortableContext items={displayHistory.map(h => h.name)} strategy={verticalListSortingStrategy}>
+                <ul className="history-list">
+                  {displayHistory.map(h => {
+                    const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
+                    return <SortableHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
+                      onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
+                  })}
+                </ul>
+              </SortableContext>
+            </DndContext>
           )}
         </>
       )}

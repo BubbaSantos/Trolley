@@ -469,10 +469,7 @@ header h1 {
 
 .swipe-delete-btn {
   position: absolute;
-  right: 0;
-  top: 0;
-  bottom: 0;
-  width: 80px;
+  inset: 0;
   background: var(--red);
   color: white;
   font-size: 0.875rem;
@@ -482,11 +479,8 @@ header h1 {
   letter-spacing: 0.02em;
   display: flex;
   align-items: center;
-  justify-content: center;
-}
-
-.swipe-delete-btn.animate {
-  transition: transform 0.25s ease;
+  justify-content: flex-end;
+  padding-right: 1.5rem;
 }
 
 .swipe-row {

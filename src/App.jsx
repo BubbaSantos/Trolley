@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.13.2'
+const VERSION = '2.13.3'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -264,8 +264,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
     <div className={`item-row-outer${isEntering ? ' item-enter' : ''}${isExiting ? ' item-exit' : ''}`}>
       <div className="swipe-wrapper">
         <button
-          className={`swipe-delete-btn${animate ? ' animate' : ''}`}
-          style={{ transform: `translateX(${SNAP + tx}px)` }}
+          className="swipe-delete-btn"
           onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(item.id), 260) }}
         >Delete</button>
         <div
@@ -337,8 +336,7 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
     <li className={`history-item${onList ? ' on-list' : ''}`}>
       <div className="swipe-wrapper">
         <button
-          className={`swipe-delete-btn${animate ? ' animate' : ''}`}
-          style={{ transform: `translateX(${SNAP + tx}px)` }}
+          className="swipe-delete-btn"
           onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}
         >Delete</button>
         <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}

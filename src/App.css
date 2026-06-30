@@ -241,6 +241,12 @@ header h1 {
   color: var(--text-ghost);
   font-weight: 500;
   letter-spacing: 0.04em;
+  opacity: 0;
+  transition: opacity 0.4s ease;
+}
+
+.version.visible {
+  opacity: 1;
 }
 
 .header-right {

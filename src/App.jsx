@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.8'
+const VERSION = '2.14.9'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -570,6 +570,7 @@ export default function App() {
     applyAccent(saved)
     return saved
   })
+  const [showVersion, setShowVersion] = useState(true)
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
@@ -625,6 +626,7 @@ export default function App() {
 
   useEffect(() => { localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder)) }, [categoryOrder])
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
+  useEffect(() => { const t = setTimeout(() => setShowVersion(false), 2000); return () => clearTimeout(t) }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
 
   useEffect(() => {
@@ -1326,7 +1328,7 @@ export default function App() {
           <span className="logo">🛒</span>
           <div className="header-title">
             <h1>Trolley</h1>
-            <p className="version">v{VERSION}</p>
+            <p className={`version${showVersion ? ' visible' : ''}`}>v{VERSION}</p>
           </div>
         </div>
         <div className="header-right">

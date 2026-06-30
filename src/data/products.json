@@ -1,299 +1,2692 @@
 {
   "categories": [
-    { "id": "fresh-fruit", "name": "Fresh Fruit, Veg & Flowers", "icon": "🍃", "color": "rgb(34, 197, 94)" },
-    { "id": "milk-cheese", "name": "Milk, Cheese, Eggs & Chilled", "icon": "🥛", "color": "rgb(202, 138, 4)" },
-    { "id": "deli", "name": "Deli/Counters", "icon": "🍽️", "color": "rgb(180, 83, 9)" },
-    { "id": "meat", "name": "Fresh Meat & Fish", "icon": "🥩", "color": "rgb(185, 28, 28)" },
-    { "id": "tins", "name": "Tins, Cans & Packets", "icon": "📦", "color": "rgb(20, 83, 111)" },
-    { "id": "bakery", "name": "Bakery", "icon": "🥐", "color": "rgb(92, 51, 23)" },
-    { "id": "drinks", "name": "Soft Drinks, Water, Tea & Coffee", "icon": "☕", "color": "rgb(30, 58, 138)" },
-    { "id": "alcohol", "name": "Beer, Wine & Alcohol", "icon": "🍷", "color": "rgb(88, 28, 135)" },
-    { "id": "frozen", "name": "Frozen", "icon": "❄️", "color": "rgb(15, 76, 129)" },
-    { "id": "pets", "name": "Pets", "icon": "🐾", "color": "rgb(120, 53, 15)" },
-    { "id": "household", "name": "Cleaning & Household", "icon": "✨", "color": "rgb(5, 150, 213)" },
-    { "id": "clothes", "name": "Clothes, Shoes & Accessories", "icon": "👕", "color": "rgb(79, 39, 131)" },
-    { "id": "auto", "name": "Auto", "icon": "🔧", "color": "rgb(55, 65, 81)" },
-    { "id": "other", "name": "Other", "icon": "🛍️", "color": "rgb(107, 114, 128)" }
+    {
+      "id": "fresh-fruit",
+      "name": "Fresh Fruit, Veg & Flowers",
+      "icon": "🍃",
+      "color": "rgb(34, 197, 94)"
+    },
+    {
+      "id": "milk-cheese",
+      "name": "Milk, Cheese, Eggs & Chilled",
+      "icon": "🥛",
+      "color": "rgb(202, 138, 4)"
+    },
+    {
+      "id": "deli",
+      "name": "Deli/Counters",
+      "icon": "🍽️",
+      "color": "rgb(180, 83, 9)"
+    },
+    {
+      "id": "meat",
+      "name": "Fresh Meat & Fish",
+      "icon": "🥩",
+      "color": "rgb(185, 28, 28)"
+    },
+    {
+      "id": "tins",
+      "name": "Tins, Cans & Packets",
+      "icon": "📦",
+      "color": "rgb(20, 83, 111)"
+    },
+    {
+      "id": "bakery",
+      "name": "Bakery",
+      "icon": "🥐",
+      "color": "rgb(92, 51, 23)"
+    },
+    {
+      "id": "drinks",
+      "name": "Soft Drinks, Water, Tea & Coffee",
+      "icon": "☕",
+      "color": "rgb(30, 58, 138)"
+    },
+    {
+      "id": "alcohol",
+      "name": "Beer, Wine & Alcohol",
+      "icon": "🍷",
+      "color": "rgb(88, 28, 135)"
+    },
+    {
+      "id": "frozen",
+      "name": "Frozen",
+      "icon": "❄️",
+      "color": "rgb(15, 76, 129)"
+    },
+    {
+      "id": "pets",
+      "name": "Pets",
+      "icon": "🐾",
+      "color": "rgb(120, 53, 15)"
+    },
+    {
+      "id": "household",
+      "name": "Cleaning & Household",
+      "icon": "✨",
+      "color": "rgb(5, 150, 213)"
+    },
+    {
+      "id": "clothes",
+      "name": "Clothes, Shoes & Accessories",
+      "icon": "👕",
+      "color": "rgb(79, 39, 131)"
+    },
+    {
+      "id": "auto",
+      "name": "Auto",
+      "icon": "🔧",
+      "color": "rgb(55, 65, 81)"
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "icon": "🛍️",
+      "color": "rgb(107, 114, 128)"
+    }
   ],
   "products": [
-    { "name": "Apples", "category": "fresh-fruit", "keywords": ["apple", "fruit", "granny smith", "braeburn", "gala"] },
-    { "name": "Avocados", "category": "fresh-fruit", "keywords": ["avocado", "avo", "fruit"] },
-    { "name": "Bananas", "category": "fresh-fruit", "keywords": ["banana", "fruit"] },
-    { "name": "Bell Peppers", "category": "fresh-fruit", "keywords": ["pepper", "peppers", "capsicum", "red pepper", "yellow pepper"] },
-    { "name": "Blueberries", "category": "fresh-fruit", "keywords": ["blueberry", "blueberries", "berries", "fruit"] },
-    { "name": "Broccoli", "category": "fresh-fruit", "keywords": ["broccoli", "veg", "green"] },
-    { "name": "Brussels Sprouts", "category": "fresh-fruit", "keywords": ["sprouts", "brussels", "brassica"] },
-    { "name": "Butternut Squash", "category": "fresh-fruit", "keywords": ["squash", "butternut", "pumpkin"] },
-    { "name": "Cabbage", "category": "fresh-fruit", "keywords": ["cabbage", "savoy", "white cabbage", "red cabbage"] },
-    { "name": "Carrots", "category": "fresh-fruit", "keywords": ["carrot", "carrots", "root", "veg"] },
-    { "name": "Cauliflower", "category": "fresh-fruit", "keywords": ["cauliflower", "cauli", "veg"] },
-    { "name": "Celery", "category": "fresh-fruit", "keywords": ["celery", "veg"] },
-    { "name": "Cherry Tomatoes", "category": "fresh-fruit", "keywords": ["cherry tomatoes", "tomato", "cherry"] },
-    { "name": "Chillies", "category": "fresh-fruit", "keywords": ["chilli", "chili", "hot", "red chilli", "green chilli"] },
-    { "name": "Coriander", "category": "fresh-fruit", "keywords": ["coriander", "herb", "fresh"] },
-    { "name": "Courgette", "category": "fresh-fruit", "keywords": ["courgette", "zucchini", "veg"] },
-    { "name": "Cucumbers", "category": "fresh-fruit", "keywords": ["cucumber", "salad", "veg"] },
-    { "name": "Daffodils", "category": "fresh-fruit", "keywords": ["daffodil", "flowers", "yellow"] },
-    { "name": "Garlic", "category": "fresh-fruit", "keywords": ["garlic", "cloves", "bulb"] },
-    { "name": "Ginger", "category": "fresh-fruit", "keywords": ["ginger", "root", "fresh"] },
-    { "name": "Grapes", "category": "fresh-fruit", "keywords": ["grapes", "grape", "seedless", "fruit"] },
-    { "name": "Green Beans", "category": "fresh-fruit", "keywords": ["green beans", "beans", "fine beans", "french beans"] },
-    { "name": "Kale", "category": "fresh-fruit", "keywords": ["kale", "veg", "greens"] },
-    { "name": "Leeks", "category": "fresh-fruit", "keywords": ["leek", "leeks", "veg"] },
-    { "name": "Lemons", "category": "fresh-fruit", "keywords": ["lemon", "citrus", "fruit"] },
-    { "name": "Lettuce", "category": "fresh-fruit", "keywords": ["lettuce", "salad", "leaves", "iceberg"] },
-    { "name": "Limes", "category": "fresh-fruit", "keywords": ["lime", "citrus", "fruit"] },
-    { "name": "Mango", "category": "fresh-fruit", "keywords": ["mango", "fruit", "tropical"] },
-    { "name": "Melon", "category": "fresh-fruit", "keywords": ["melon", "cantaloupe", "honeydew", "fruit"] },
-    { "name": "Mint", "category": "fresh-fruit", "keywords": ["mint", "herb", "fresh"] },
-    { "name": "Mixed Salad Leaves", "category": "fresh-fruit", "keywords": ["salad", "leaves", "mixed", "bag"] },
-    { "name": "Mushrooms", "category": "fresh-fruit", "keywords": ["mushroom", "button", "chestnut", "portobello"] },
-    { "name": "Nectarines", "category": "fresh-fruit", "keywords": ["nectarine", "fruit", "stone"] },
-    { "name": "Onions", "category": "fresh-fruit", "keywords": ["onion", "onions", "brown", "white"] },
-    { "name": "Oranges", "category": "fresh-fruit", "keywords": ["orange", "citrus", "fruit"] },
-    { "name": "Parsley", "category": "fresh-fruit", "keywords": ["parsley", "herb", "flat leaf"] },
-    { "name": "Parsnips", "category": "fresh-fruit", "keywords": ["parsnip", "parsnips", "root", "veg"] },
-    { "name": "Peaches", "category": "fresh-fruit", "keywords": ["peach", "peaches", "fruit"] },
-    { "name": "Pears", "category": "fresh-fruit", "keywords": ["pear", "pears", "fruit", "conference"] },
-    { "name": "Peas", "category": "fresh-fruit", "keywords": ["peas", "sugar snap", "mange tout", "veg"] },
-    { "name": "Pineapple", "category": "fresh-fruit", "keywords": ["pineapple", "fruit", "tropical"] },
-    { "name": "Plums", "category": "fresh-fruit", "keywords": ["plum", "plums", "fruit"] },
-    { "name": "Potatoes", "category": "fresh-fruit", "keywords": ["potato", "potatoes", "spuds", "maris piper", "king edward"] },
-    { "name": "Radishes", "category": "fresh-fruit", "keywords": ["radish", "radishes", "veg"] },
-    { "name": "Raspberries", "category": "fresh-fruit", "keywords": ["raspberry", "raspberries", "berries", "fruit"] },
-    { "name": "Red Onions", "category": "fresh-fruit", "keywords": ["red onion", "onion", "veg"] },
-    { "name": "Rosemary", "category": "fresh-fruit", "keywords": ["rosemary", "herb", "fresh"] },
-    { "name": "Roses", "category": "fresh-fruit", "keywords": ["roses", "flowers", "bouquet"] },
-    { "name": "Spinach", "category": "fresh-fruit", "keywords": ["spinach", "baby spinach", "veg", "greens"] },
-    { "name": "Spring Onions", "category": "fresh-fruit", "keywords": ["spring onion", "scallion", "onion"] },
-    { "name": "Strawberries", "category": "fresh-fruit", "keywords": ["strawberry", "strawberries", "berries", "fruit"] },
-    { "name": "Sunflowers", "category": "fresh-fruit", "keywords": ["sunflower", "flowers"] },
-    { "name": "Sweet Potatoes", "category": "fresh-fruit", "keywords": ["sweet potato", "yam", "veg"] },
-    { "name": "Sweetcorn", "category": "fresh-fruit", "keywords": ["sweetcorn", "corn", "cob"] },
-    { "name": "Thyme", "category": "fresh-fruit", "keywords": ["thyme", "herb", "fresh"] },
-    { "name": "Tomatoes", "category": "fresh-fruit", "keywords": ["tomato", "tomatoes", "veg", "vine"] },
-    { "name": "Tulips", "category": "fresh-fruit", "keywords": ["tulip", "flowers"] },
-    { "name": "Turnips", "category": "fresh-fruit", "keywords": ["turnip", "turnips", "root", "veg"] },
-    { "name": "Watercress", "category": "fresh-fruit", "keywords": ["watercress", "salad", "leaves"] },
-
-    { "name": "Brie", "category": "milk-cheese", "keywords": ["brie", "cheese", "soft"] },
-    { "name": "Butter", "category": "milk-cheese", "keywords": ["butter", "spread", "dairy"] },
-    { "name": "Cheddar Cheese", "category": "milk-cheese", "keywords": ["cheddar", "cheese", "dairy", "mild", "mature"] },
-    { "name": "Clotted Cream", "category": "milk-cheese", "keywords": ["clotted cream", "cream", "dairy"] },
-    { "name": "Cottage Cheese", "category": "milk-cheese", "keywords": ["cottage cheese", "cheese", "low fat"] },
-    { "name": "Cream", "category": "milk-cheese", "keywords": ["cream", "double cream", "single", "dairy"] },
-    { "name": "Cream Cheese", "category": "milk-cheese", "keywords": ["cream cheese", "philadelphia", "soft cheese"] },
-    { "name": "Crème Fraîche", "category": "milk-cheese", "keywords": ["creme fraiche", "cream", "dairy"] },
-    { "name": "Eggs", "category": "milk-cheese", "keywords": ["eggs", "egg", "free range", "medium", "large"] },
-    { "name": "Feta Cheese", "category": "milk-cheese", "keywords": ["feta", "cheese", "greek"] },
-    { "name": "Goat's Cheese", "category": "milk-cheese", "keywords": ["goat cheese", "goats", "soft"] },
-    { "name": "Halloumi", "category": "milk-cheese", "keywords": ["halloumi", "cheese", "grilling"] },
-    { "name": "Milk Semi Skimmed", "category": "milk-cheese", "keywords": ["milk", "semi skimmed", "dairy", "2%"] },
-    { "name": "Milk Skimmed", "category": "milk-cheese", "keywords": ["milk", "skimmed", "dairy", "fat free"] },
-    { "name": "Milk Whole", "category": "milk-cheese", "keywords": ["milk", "whole milk", "full fat", "dairy"] },
-    { "name": "Mozzarella", "category": "milk-cheese", "keywords": ["mozzarella", "cheese", "pizza", "italian"] },
-    { "name": "Oat Milk", "category": "milk-cheese", "keywords": ["oat milk", "oat", "dairy free", "alternative"] },
-    { "name": "Parmesan", "category": "milk-cheese", "keywords": ["parmesan", "parmigiano", "cheese", "italian"] },
-    { "name": "Sour Cream", "category": "milk-cheese", "keywords": ["sour cream", "cream", "dairy"] },
-    { "name": "Stilton", "category": "milk-cheese", "keywords": ["stilton", "blue cheese", "cheese"] },
-    { "name": "Vegan Cheese", "category": "milk-cheese", "keywords": ["vegan cheese", "dairy free", "plant based"] },
-    { "name": "Yoghurt Greek", "category": "milk-cheese", "keywords": ["yogurt", "yoghurt", "greek", "dairy"] },
-    { "name": "Yoghurt Natural", "category": "milk-cheese", "keywords": ["yogurt", "yoghurt", "natural", "plain"] },
-
-    { "name": "Chorizo", "category": "deli", "keywords": ["chorizo", "sausage", "spanish", "deli"] },
-    { "name": "Cooked Chicken", "category": "deli", "keywords": ["cooked chicken", "chicken", "deli", "sliced"] },
-    { "name": "Ham Sliced", "category": "deli", "keywords": ["ham", "sliced", "deli", "cooked"] },
-    { "name": "Hummus", "category": "deli", "keywords": ["hummus", "houmous", "dip", "deli"] },
-    { "name": "Olives", "category": "deli", "keywords": ["olives", "olive", "black", "green", "deli"] },
-    { "name": "Pastrami", "category": "deli", "keywords": ["pastrami", "deli", "beef", "sliced"] },
-    { "name": "Pâté", "category": "deli", "keywords": ["pate", "pâté", "deli", "liver"] },
-    { "name": "Pepperoni", "category": "deli", "keywords": ["pepperoni", "pizza", "deli", "sliced"] },
-    { "name": "Prosciutto", "category": "deli", "keywords": ["prosciutto", "parma ham", "italian", "deli"] },
-    { "name": "Salami", "category": "deli", "keywords": ["salami", "deli", "italian", "sliced"] },
-    { "name": "Smoked Salmon", "category": "deli", "keywords": ["smoked salmon", "salmon", "fish", "deli"] },
-    { "name": "Taramasalata", "category": "deli", "keywords": ["taramasalata", "dip", "fish", "deli"] },
-    { "name": "Turkey Sliced", "category": "deli", "keywords": ["turkey", "sliced", "deli", "cooked"] },
-    { "name": "Tzatziki", "category": "deli", "keywords": ["tzatziki", "dip", "greek", "deli"] },
-
-    { "name": "Beef Mince", "category": "meat", "keywords": ["beef mince", "mince", "ground beef", "meat"] },
-    { "name": "Beef Steak", "category": "meat", "keywords": ["steak", "beef", "sirloin", "ribeye", "meat"] },
-    { "name": "Chicken Breast", "category": "meat", "keywords": ["chicken breast", "chicken", "poultry", "meat"] },
-    { "name": "Chicken Thighs", "category": "meat", "keywords": ["chicken thigh", "thighs", "chicken", "meat"] },
-    { "name": "Chicken Wings", "category": "meat", "keywords": ["wings", "chicken wings", "chicken", "meat"] },
-    { "name": "Cod Fillet", "category": "meat", "keywords": ["cod", "fish", "fillet", "white fish"] },
-    { "name": "Haddock", "category": "meat", "keywords": ["haddock", "fish", "fillet", "white fish"] },
-    { "name": "Lamb Chops", "category": "meat", "keywords": ["lamb", "chops", "meat"] },
-    { "name": "Lamb Mince", "category": "meat", "keywords": ["lamb mince", "mince", "lamb", "meat"] },
-    { "name": "Mackerel", "category": "meat", "keywords": ["mackerel", "fish", "oily"] },
-    { "name": "Pork Chops", "category": "meat", "keywords": ["pork chops", "pork", "chops", "meat"] },
-    { "name": "Pork Mince", "category": "meat", "keywords": ["pork mince", "mince", "pork", "meat"] },
-    { "name": "Prawns", "category": "meat", "keywords": ["prawns", "shrimp", "seafood"] },
-    { "name": "Salmon Fillet", "category": "meat", "keywords": ["salmon", "fish", "fillet", "oily"] },
-    { "name": "Sausages", "category": "meat", "keywords": ["sausages", "bangers", "pork", "meat"] },
-    { "name": "Tuna Steak", "category": "meat", "keywords": ["tuna steak", "tuna", "fish"] },
-    { "name": "Turkey Mince", "category": "meat", "keywords": ["turkey mince", "mince", "turkey", "meat"] },
-    { "name": "Whole Chicken", "category": "meat", "keywords": ["whole chicken", "roast chicken", "chicken", "meat"] },
-    { "name": "Whole Salmon", "category": "meat", "keywords": ["whole salmon", "salmon", "fish"] },
-
-    { "name": "Baked Beans", "category": "tins", "keywords": ["baked beans", "beans", "tin", "heinz"] },
-    { "name": "Black Beans", "category": "tins", "keywords": ["black beans", "beans", "tin", "can"] },
-    { "name": "Bread Flour", "category": "tins", "keywords": ["bread flour", "flour", "strong", "baking"] },
-    { "name": "Cereal", "category": "tins", "keywords": ["cereal", "cornflakes", "shreddies", "weetabix", "breakfast"] },
-    { "name": "Chickpeas", "category": "tins", "keywords": ["chickpeas", "chickpea", "tin", "can"] },
-    { "name": "Chopped Tomatoes", "category": "tins", "keywords": ["chopped tomatoes", "tin tomatoes", "plum", "passata"] },
-    { "name": "Coconut Milk", "category": "tins", "keywords": ["coconut milk", "coconut cream", "tin"] },
-    { "name": "Cornflour", "category": "tins", "keywords": ["cornflour", "cornstarch", "thickener"] },
-    { "name": "Couscous", "category": "tins", "keywords": ["couscous", "grain", "packet"] },
-    { "name": "Curry Paste", "category": "tins", "keywords": ["curry paste", "korma", "tikka", "balti", "thai"] },
-    { "name": "Dried Lentils", "category": "tins", "keywords": ["lentils", "red lentils", "green lentils", "packet"] },
-    { "name": "Flour Plain", "category": "tins", "keywords": ["flour", "plain flour", "baking", "packet"] },
-    { "name": "Flour Self Raising", "category": "tins", "keywords": ["self raising flour", "flour", "baking"] },
-    { "name": "Honey", "category": "tins", "keywords": ["honey", "jar", "blossom"] },
-    { "name": "Jam", "category": "tins", "keywords": ["jam", "strawberry jam", "raspberry jam", "marmalade"] },
-    { "name": "Kidney Beans", "category": "tins", "keywords": ["kidney beans", "red kidney", "beans", "tin"] },
-    { "name": "Lentils Canned", "category": "tins", "keywords": ["lentils", "tin", "can", "packet"] },
-    { "name": "Noodles", "category": "tins", "keywords": ["noodles", "dried", "packet", "egg noodles"] },
-    { "name": "Oats Porridge", "category": "tins", "keywords": ["oats", "porridge", "rolled oats", "breakfast"] },
-    { "name": "Oil Olive", "category": "tins", "keywords": ["olive oil", "oil", "cooking", "extra virgin"] },
-    { "name": "Oil Sunflower", "category": "tins", "keywords": ["sunflower oil", "oil", "vegetable oil", "cooking"] },
-    { "name": "Pasta", "category": "tins", "keywords": ["pasta", "spaghetti", "penne", "fusilli", "dried"] },
-    { "name": "Peanut Butter", "category": "tins", "keywords": ["peanut butter", "smooth", "crunchy", "nut butter"] },
-    { "name": "Quinoa", "category": "tins", "keywords": ["quinoa", "grain", "packet", "superfood"] },
-    { "name": "Rice Basmati", "category": "tins", "keywords": ["rice", "basmati", "long grain", "packet"] },
-    { "name": "Rice Pudding", "category": "tins", "keywords": ["rice pudding", "pudding", "tin", "dessert"] },
-    { "name": "Salt", "category": "tins", "keywords": ["salt", "sea salt", "table salt"] },
-    { "name": "Soup Tomato", "category": "tins", "keywords": ["tomato soup", "soup", "tin", "can"] },
-    { "name": "Soup Chicken", "category": "tins", "keywords": ["chicken soup", "soup", "tin", "can"] },
-    { "name": "Soy Sauce", "category": "tins", "keywords": ["soy sauce", "soya", "sauce", "cooking"] },
-    { "name": "Sugar Caster", "category": "tins", "keywords": ["caster sugar", "sugar", "baking"] },
-    { "name": "Sugar Granulated", "category": "tins", "keywords": ["granulated sugar", "sugar", "white"] },
-    { "name": "Tomato Puree", "category": "tins", "keywords": ["tomato puree", "paste", "cooking"] },
-    { "name": "Tuna Canned", "category": "tins", "keywords": ["tuna", "tinned tuna", "can", "fish"] },
-    { "name": "Vinegar Balsamic", "category": "tins", "keywords": ["balsamic vinegar", "vinegar", "condiment"] },
-    { "name": "Vinegar White", "category": "tins", "keywords": ["white vinegar", "malt vinegar", "vinegar"] },
-    { "name": "Worcestershire Sauce", "category": "tins", "keywords": ["worcestershire sauce", "worcester", "lea perrins", "sauce"] },
-
-    { "name": "Bagels", "category": "bakery", "keywords": ["bagels", "bagel", "bread"] },
-    { "name": "Baguette", "category": "bakery", "keywords": ["baguette", "french bread", "bread"] },
-    { "name": "Bread White", "category": "bakery", "keywords": ["white bread", "bread", "loaf", "sandwich"] },
-    { "name": "Bread Wholemeal", "category": "bakery", "keywords": ["wholemeal bread", "brown bread", "bread", "loaf"] },
-    { "name": "Bread Seeded", "category": "bakery", "keywords": ["seeded bread", "bread", "loaf", "granary"] },
-    { "name": "Brioche", "category": "bakery", "keywords": ["brioche", "bread", "sweet", "bun"] },
-    { "name": "Croissants", "category": "bakery", "keywords": ["croissants", "croissant", "pastry", "french"] },
-    { "name": "Danish Pastries", "category": "bakery", "keywords": ["danish", "pastry", "pain au chocolat"] },
-    { "name": "Doughnuts", "category": "bakery", "keywords": ["doughnut", "donut", "ring"] },
-    { "name": "Hot Cross Buns", "category": "bakery", "keywords": ["hot cross buns", "buns", "easter"] },
-    { "name": "Muffins", "category": "bakery", "keywords": ["muffin", "english muffin", "blueberry"] },
-    { "name": "Naan Bread", "category": "bakery", "keywords": ["naan", "flatbread", "indian", "bread"] },
-    { "name": "Pitta Bread", "category": "bakery", "keywords": ["pitta", "pita", "flatbread", "bread"] },
-    { "name": "Rolls", "category": "bakery", "keywords": ["rolls", "bread rolls", "buns", "bap"] },
-    { "name": "Scones", "category": "bakery", "keywords": ["scones", "scone", "cream tea"] },
-    { "name": "Sourdough", "category": "bakery", "keywords": ["sourdough", "bread", "artisan", "loaf"] },
-    { "name": "Tortilla Wraps", "category": "bakery", "keywords": ["wraps", "tortilla", "flatbread"] },
-
-    { "name": "Almond Milk", "category": "drinks", "keywords": ["almond milk", "dairy free", "nut milk"] },
-    { "name": "Apple Juice", "category": "drinks", "keywords": ["apple juice", "juice", "fruit juice"] },
-    { "name": "Coca Cola", "category": "drinks", "keywords": ["coke", "cola", "coca cola", "soft drink"] },
-    { "name": "Coffee Beans", "category": "drinks", "keywords": ["coffee beans", "coffee", "espresso", "beans"] },
-    { "name": "Coffee Ground", "category": "drinks", "keywords": ["ground coffee", "coffee", "filter"] },
-    { "name": "Coffee Instant", "category": "drinks", "keywords": ["instant coffee", "coffee", "nescafe", "jar"] },
-    { "name": "Cordial", "category": "drinks", "keywords": ["cordial", "squash", "ribena", "fruit"] },
-    { "name": "Decaf Coffee", "category": "drinks", "keywords": ["decaf coffee", "coffee", "decaffeinated"] },
-    { "name": "Diet Coke", "category": "drinks", "keywords": ["diet coke", "cola", "soft drink", "diet"] },
-    { "name": "Energy Drink", "category": "drinks", "keywords": ["energy drink", "red bull", "monster", "can"] },
-    { "name": "Herbal Tea", "category": "drinks", "keywords": ["herbal tea", "tea", "peppermint", "camomile"] },
-    { "name": "Hot Chocolate", "category": "drinks", "keywords": ["hot chocolate", "cocoa", "drinking chocolate"] },
-    { "name": "Lemonade", "category": "drinks", "keywords": ["lemonade", "fizzy", "soft drink"] },
-    { "name": "Lucozade", "category": "drinks", "keywords": ["lucozade", "sports drink", "energy"] },
-    { "name": "Oat Milk", "category": "drinks", "keywords": ["oat milk", "oat", "dairy free"] },
-    { "name": "Orange Juice", "category": "drinks", "keywords": ["orange juice", "oj", "juice", "fresh"] },
-    { "name": "Ribena", "category": "drinks", "keywords": ["ribena", "blackcurrant", "juice", "cordial"] },
-    { "name": "Sparkling Water", "category": "drinks", "keywords": ["sparkling water", "fizzy water", "soda water"] },
-    { "name": "Squash", "category": "drinks", "keywords": ["squash", "cordial", "orange squash", "dilute"] },
-    { "name": "Tea Bags", "category": "drinks", "keywords": ["tea", "teabags", "yorkshire tea", "pg tips", "breakfast tea"] },
-    { "name": "Tonic Water", "category": "drinks", "keywords": ["tonic water", "tonic", "schweppes"] },
-    { "name": "Water Bottled", "category": "drinks", "keywords": ["water", "bottled water", "still", "evian", "highland"] },
-
-    { "name": "Beer Lager", "category": "alcohol", "keywords": ["beer", "lager", "heineken", "stella", "peroni"] },
-    { "name": "Beer Ale", "category": "alcohol", "keywords": ["ale", "beer", "ipa", "bitter", "craft"] },
-    { "name": "Champagne", "category": "alcohol", "keywords": ["champagne", "sparkling", "wine", "celebration"] },
-    { "name": "Cider", "category": "alcohol", "keywords": ["cider", "apple", "rekorderlig", "kopparberg"] },
-    { "name": "Gin", "category": "alcohol", "keywords": ["gin", "spirit", "hendricks", "tanqueray", "bombay"] },
-    { "name": "Guinness", "category": "alcohol", "keywords": ["guinness", "stout", "beer", "irish"] },
-    { "name": "Prosecco", "category": "alcohol", "keywords": ["prosecco", "sparkling wine", "fizz"] },
-    { "name": "Red Wine", "category": "alcohol", "keywords": ["red wine", "wine", "merlot", "cabernet", "rioja"] },
-    { "name": "Rosé Wine", "category": "alcohol", "keywords": ["rose wine", "rosé", "wine", "pink"] },
-    { "name": "Rum", "category": "alcohol", "keywords": ["rum", "spirit", "dark rum", "white rum", "bacardi"] },
-    { "name": "Vodka", "category": "alcohol", "keywords": ["vodka", "spirit", "smirnoff", "grey goose"] },
-    { "name": "Whisky", "category": "alcohol", "keywords": ["whisky", "whiskey", "scotch", "bourbon", "spirit"] },
-    { "name": "White Wine", "category": "alcohol", "keywords": ["white wine", "wine", "sauvignon blanc", "pinot grigio"] },
-
-    { "name": "Frozen Berries", "category": "frozen", "keywords": ["frozen berries", "berries", "mixed", "frozen"] },
-    { "name": "Frozen Chips", "category": "frozen", "keywords": ["frozen chips", "chips", "fries", "oven chips"] },
-    { "name": "Frozen Chicken Nuggets", "category": "frozen", "keywords": ["nuggets", "chicken nuggets", "frozen", "kids"] },
-    { "name": "Frozen Edamame", "category": "frozen", "keywords": ["edamame", "soya beans", "frozen"] },
-    { "name": "Frozen Fish Fingers", "category": "frozen", "keywords": ["fish fingers", "fish", "frozen", "birds eye"] },
-    { "name": "Frozen Peas", "category": "frozen", "keywords": ["frozen peas", "peas", "veg", "frozen"] },
-    { "name": "Frozen Pizza", "category": "frozen", "keywords": ["pizza", "frozen pizza", "oven pizza"] },
-    { "name": "Frozen Prawns", "category": "frozen", "keywords": ["frozen prawns", "prawns", "seafood", "frozen"] },
-    { "name": "Frozen Spinach", "category": "frozen", "keywords": ["frozen spinach", "spinach", "veg", "frozen"] },
-    { "name": "Frozen Sweetcorn", "category": "frozen", "keywords": ["frozen sweetcorn", "sweetcorn", "corn", "frozen"] },
-    { "name": "Frozen Vegetable Mix", "category": "frozen", "keywords": ["mixed veg", "vegetables", "frozen", "mixed"] },
-    { "name": "Ice Cream", "category": "frozen", "keywords": ["ice cream", "vanilla", "chocolate", "frozen dessert"] },
-    { "name": "Ice Lollies", "category": "frozen", "keywords": ["ice lolly", "lollies", "frozen", "kids"] },
-    { "name": "Potato Waffles", "category": "frozen", "keywords": ["waffles", "potato waffles", "frozen", "birds eye"] },
-    { "name": "Oven Chips", "category": "frozen", "keywords": ["oven chips", "chips", "frozen", "mccain"] },
-
-    { "name": "Cat Food", "category": "pets", "keywords": ["cat food", "whiskas", "felix", "pet"] },
-    { "name": "Cat Litter", "category": "pets", "keywords": ["cat litter", "litter", "cat"] },
-    { "name": "Cat Treats", "category": "pets", "keywords": ["cat treats", "treats", "cat", "pet"] },
-    { "name": "Dog Food", "category": "pets", "keywords": ["dog food", "pedigree", "winalot", "kibble", "pet"] },
-    { "name": "Dog Treats", "category": "pets", "keywords": ["dog treats", "treats", "dog", "pet"] },
-    { "name": "Fish Food", "category": "pets", "keywords": ["fish food", "aquarium", "pet"] },
-    { "name": "Puppy Food", "category": "pets", "keywords": ["puppy food", "puppy", "dog", "pet"] },
-
-    { "name": "Antibacterial Spray", "category": "household", "keywords": ["antibacterial", "dettol", "spray", "cleaning"] },
-    { "name": "Batteries", "category": "household", "keywords": ["batteries", "aa", "aaa", "battery"] },
-    { "name": "Bin Bags", "category": "household", "keywords": ["bin bags", "rubbish bags", "bin liners", "trash"] },
-    { "name": "Bleach", "category": "household", "keywords": ["bleach", "cleaning", "bathroom", "toilet"] },
-    { "name": "Candles", "category": "household", "keywords": ["candles", "candle", "tealight", "household"] },
-    { "name": "Cling Film", "category": "household", "keywords": ["cling film", "plastic wrap", "food wrap"] },
-    { "name": "Dishwasher Tablets", "category": "household", "keywords": ["dishwasher tablets", "dishwasher", "finish", "cleaning"] },
-    { "name": "Dish Soap", "category": "household", "keywords": ["dish soap", "fairy", "washing up liquid", "cleaning"] },
-    { "name": "Fabric Softener", "category": "household", "keywords": ["fabric softener", "conditioner", "lenor", "laundry"] },
-    { "name": "Foil", "category": "household", "keywords": ["foil", "tin foil", "aluminium foil", "kitchen"] },
-    { "name": "Hand Sanitiser", "category": "household", "keywords": ["hand sanitiser", "sanitizer", "gel", "antibacterial"] },
-    { "name": "Kitchen Roll", "category": "household", "keywords": ["kitchen roll", "paper towel", "kitchen", "cleaning"] },
-    { "name": "Laundry Capsules", "category": "household", "keywords": ["laundry capsules", "pods", "ariel", "washing"] },
-    { "name": "Light Bulbs", "category": "household", "keywords": ["light bulbs", "led", "bulb", "lighting"] },
-    { "name": "Matches", "category": "household", "keywords": ["matches", "fire", "lighter"] },
-    { "name": "Mop", "category": "household", "keywords": ["mop", "floor", "cleaning"] },
-    { "name": "Oven Cleaner", "category": "household", "keywords": ["oven cleaner", "oven", "cleaning", "mr muscle"] },
-    { "name": "Rubber Gloves", "category": "household", "keywords": ["rubber gloves", "gloves", "cleaning", "marigold"] },
-    { "name": "Sponges", "category": "household", "keywords": ["sponge", "scourer", "scrubber", "cleaning"] },
-    { "name": "Toilet Paper", "category": "household", "keywords": ["toilet paper", "loo roll", "toilet roll", "tissue"] },
-    { "name": "Washing Powder", "category": "household", "keywords": ["washing powder", "laundry", "ariel", "persil", "detergent"] },
-    { "name": "Washing Up Liquid", "category": "household", "keywords": ["washing up liquid", "fairy", "dish soap", "cleaning"] },
-    { "name": "Window Cleaner", "category": "household", "keywords": ["window cleaner", "glass cleaner", "cleaning"] },
-    { "name": "Zip Lock Bags", "category": "household", "keywords": ["zip lock", "freezer bags", "food bags"] },
-
-    { "name": "Deodorant", "category": "other", "keywords": ["deodorant", "antiperspirant", "spray", "roll on"] },
-    { "name": "Dental Floss", "category": "other", "keywords": ["dental floss", "floss", "dental", "teeth"] },
-    { "name": "Face Cream", "category": "other", "keywords": ["face cream", "moisturiser", "skin care", "beauty"] },
-    { "name": "Face Wash", "category": "other", "keywords": ["face wash", "cleanser", "skin care"] },
-    { "name": "Ibuprofen", "category": "other", "keywords": ["ibuprofen", "nurofen", "pain relief", "medicine"] },
-    { "name": "Lip Balm", "category": "other", "keywords": ["lip balm", "chapstick", "vaseline"] },
-    { "name": "Nappies", "category": "other", "keywords": ["nappies", "nappy", "pampers", "huggies", "baby"] },
-    { "name": "Paracetamol", "category": "other", "keywords": ["paracetamol", "pain relief", "headache", "medicine"] },
-    { "name": "Razors", "category": "other", "keywords": ["razors", "razor", "shaving", "blade", "gillette"] },
-    { "name": "Shampoo", "category": "other", "keywords": ["shampoo", "hair", "wash", "head shoulders"] },
-    { "name": "Shaving Foam", "category": "other", "keywords": ["shaving foam", "shaving gel", "shaving cream"] },
-    { "name": "Shower Gel", "category": "other", "keywords": ["shower gel", "body wash", "soap", "skin"] },
-    { "name": "Soap Bar", "category": "other", "keywords": ["soap", "bar soap", "hand soap", "wash"] },
-    { "name": "Sunscreen", "category": "other", "keywords": ["sunscreen", "suncream", "spf", "sun protection"] },
-    { "name": "Tampons", "category": "other", "keywords": ["tampons", "tampon", "feminine hygiene"] },
-    { "name": "Toothbrush", "category": "other", "keywords": ["toothbrush", "brush", "dental", "oral b"] },
-    { "name": "Toothpaste", "category": "other", "keywords": ["toothpaste", "colgate", "dental", "teeth"] },
-    { "name": "Wet Wipes", "category": "other", "keywords": ["wet wipes", "wipes", "baby wipes", "cleaning"] }
+    {
+      "name": "Apples",
+      "category": "fresh-fruit",
+      "keywords": [
+        "apple",
+        "fruit",
+        "granny smith",
+        "braeburn",
+        "gala"
+      ]
+    },
+    {
+      "name": "Avocados",
+      "category": "fresh-fruit",
+      "keywords": [
+        "avocado",
+        "avo",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Bananas",
+      "category": "fresh-fruit",
+      "keywords": [
+        "banana",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Bell Peppers",
+      "category": "fresh-fruit",
+      "keywords": [
+        "pepper",
+        "peppers",
+        "capsicum",
+        "red pepper",
+        "yellow pepper"
+      ]
+    },
+    {
+      "name": "Blueberries",
+      "category": "fresh-fruit",
+      "keywords": [
+        "blueberry",
+        "blueberries",
+        "berries",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Broccoli",
+      "category": "fresh-fruit",
+      "keywords": [
+        "broccoli",
+        "veg",
+        "green"
+      ]
+    },
+    {
+      "name": "Brussels Sprouts",
+      "category": "fresh-fruit",
+      "keywords": [
+        "sprouts",
+        "brussels",
+        "brassica"
+      ]
+    },
+    {
+      "name": "Butternut Squash",
+      "category": "fresh-fruit",
+      "keywords": [
+        "squash",
+        "butternut",
+        "pumpkin"
+      ]
+    },
+    {
+      "name": "Cabbage",
+      "category": "fresh-fruit",
+      "keywords": [
+        "cabbage",
+        "savoy",
+        "white cabbage",
+        "red cabbage"
+      ]
+    },
+    {
+      "name": "Carrots",
+      "category": "fresh-fruit",
+      "keywords": [
+        "carrot",
+        "carrots",
+        "root",
+        "veg"
+      ]
+    },
+    {
+      "name": "Cauliflower",
+      "category": "fresh-fruit",
+      "keywords": [
+        "cauliflower",
+        "cauli",
+        "veg"
+      ]
+    },
+    {
+      "name": "Celery",
+      "category": "fresh-fruit",
+      "keywords": [
+        "celery",
+        "veg"
+      ]
+    },
+    {
+      "name": "Cherry Tomatoes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "cherry tomatoes",
+        "tomato",
+        "cherry"
+      ]
+    },
+    {
+      "name": "Chillies",
+      "category": "fresh-fruit",
+      "keywords": [
+        "chilli",
+        "chili",
+        "hot",
+        "red chilli",
+        "green chilli"
+      ]
+    },
+    {
+      "name": "Coriander",
+      "category": "fresh-fruit",
+      "keywords": [
+        "coriander",
+        "herb",
+        "fresh"
+      ]
+    },
+    {
+      "name": "Courgette",
+      "category": "fresh-fruit",
+      "keywords": [
+        "courgette",
+        "zucchini",
+        "veg"
+      ]
+    },
+    {
+      "name": "Cucumbers",
+      "category": "fresh-fruit",
+      "keywords": [
+        "cucumber",
+        "salad",
+        "veg"
+      ]
+    },
+    {
+      "name": "Daffodils",
+      "category": "fresh-fruit",
+      "keywords": [
+        "daffodil",
+        "flowers",
+        "yellow"
+      ]
+    },
+    {
+      "name": "Garlic",
+      "category": "fresh-fruit",
+      "keywords": [
+        "garlic",
+        "cloves",
+        "bulb"
+      ]
+    },
+    {
+      "name": "Ginger",
+      "category": "fresh-fruit",
+      "keywords": [
+        "ginger",
+        "root",
+        "fresh"
+      ]
+    },
+    {
+      "name": "Grapes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "grapes",
+        "grape",
+        "seedless",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Green Beans",
+      "category": "fresh-fruit",
+      "keywords": [
+        "green beans",
+        "beans",
+        "fine beans",
+        "french beans"
+      ]
+    },
+    {
+      "name": "Kale",
+      "category": "fresh-fruit",
+      "keywords": [
+        "kale",
+        "veg",
+        "greens"
+      ]
+    },
+    {
+      "name": "Leeks",
+      "category": "fresh-fruit",
+      "keywords": [
+        "leek",
+        "leeks",
+        "veg"
+      ]
+    },
+    {
+      "name": "Lemons",
+      "category": "fresh-fruit",
+      "keywords": [
+        "lemon",
+        "citrus",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Lettuce",
+      "category": "fresh-fruit",
+      "keywords": [
+        "lettuce",
+        "salad",
+        "leaves",
+        "iceberg"
+      ]
+    },
+    {
+      "name": "Limes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "lime",
+        "citrus",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Mango",
+      "category": "fresh-fruit",
+      "keywords": [
+        "mango",
+        "fruit",
+        "tropical"
+      ]
+    },
+    {
+      "name": "Melon",
+      "category": "fresh-fruit",
+      "keywords": [
+        "melon",
+        "cantaloupe",
+        "honeydew",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Mint",
+      "category": "fresh-fruit",
+      "keywords": [
+        "mint",
+        "herb",
+        "fresh"
+      ]
+    },
+    {
+      "name": "Mixed Salad Leaves",
+      "category": "fresh-fruit",
+      "keywords": [
+        "salad",
+        "leaves",
+        "mixed",
+        "bag"
+      ]
+    },
+    {
+      "name": "Mushrooms",
+      "category": "fresh-fruit",
+      "keywords": [
+        "mushroom",
+        "button",
+        "chestnut",
+        "portobello"
+      ]
+    },
+    {
+      "name": "Nectarines",
+      "category": "fresh-fruit",
+      "keywords": [
+        "nectarine",
+        "fruit",
+        "stone"
+      ]
+    },
+    {
+      "name": "Onions",
+      "category": "fresh-fruit",
+      "keywords": [
+        "onion",
+        "onions",
+        "brown",
+        "white"
+      ]
+    },
+    {
+      "name": "Oranges",
+      "category": "fresh-fruit",
+      "keywords": [
+        "orange",
+        "citrus",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Parsley",
+      "category": "fresh-fruit",
+      "keywords": [
+        "parsley",
+        "herb",
+        "flat leaf"
+      ]
+    },
+    {
+      "name": "Parsnips",
+      "category": "fresh-fruit",
+      "keywords": [
+        "parsnip",
+        "parsnips",
+        "root",
+        "veg"
+      ]
+    },
+    {
+      "name": "Peaches",
+      "category": "fresh-fruit",
+      "keywords": [
+        "peach",
+        "peaches",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Pears",
+      "category": "fresh-fruit",
+      "keywords": [
+        "pear",
+        "pears",
+        "fruit",
+        "conference"
+      ]
+    },
+    {
+      "name": "Peas",
+      "category": "fresh-fruit",
+      "keywords": [
+        "peas",
+        "sugar snap",
+        "mange tout",
+        "veg"
+      ]
+    },
+    {
+      "name": "Pineapple",
+      "category": "fresh-fruit",
+      "keywords": [
+        "pineapple",
+        "fruit",
+        "tropical"
+      ]
+    },
+    {
+      "name": "Plums",
+      "category": "fresh-fruit",
+      "keywords": [
+        "plum",
+        "plums",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Potatoes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "potato",
+        "potatoes",
+        "spuds",
+        "maris piper",
+        "king edward"
+      ]
+    },
+    {
+      "name": "Radishes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "radish",
+        "radishes",
+        "veg"
+      ]
+    },
+    {
+      "name": "Raspberries",
+      "category": "fresh-fruit",
+      "keywords": [
+        "raspberry",
+        "raspberries",
+        "berries",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Red Onions",
+      "category": "fresh-fruit",
+      "keywords": [
+        "red onion",
+        "onion",
+        "veg"
+      ]
+    },
+    {
+      "name": "Rosemary",
+      "category": "fresh-fruit",
+      "keywords": [
+        "rosemary",
+        "herb",
+        "fresh"
+      ]
+    },
+    {
+      "name": "Roses",
+      "category": "fresh-fruit",
+      "keywords": [
+        "roses",
+        "flowers",
+        "bouquet"
+      ]
+    },
+    {
+      "name": "Spinach",
+      "category": "fresh-fruit",
+      "keywords": [
+        "spinach",
+        "baby spinach",
+        "veg",
+        "greens"
+      ]
+    },
+    {
+      "name": "Spring Onions",
+      "category": "fresh-fruit",
+      "keywords": [
+        "spring onion",
+        "scallion",
+        "onion"
+      ]
+    },
+    {
+      "name": "Strawberries",
+      "category": "fresh-fruit",
+      "keywords": [
+        "strawberry",
+        "strawberries",
+        "berries",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Sunflowers",
+      "category": "fresh-fruit",
+      "keywords": [
+        "sunflower",
+        "flowers"
+      ]
+    },
+    {
+      "name": "Sweet Potatoes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "sweet potato",
+        "yam",
+        "veg"
+      ]
+    },
+    {
+      "name": "Sweetcorn",
+      "category": "fresh-fruit",
+      "keywords": [
+        "sweetcorn",
+        "corn",
+        "cob"
+      ]
+    },
+    {
+      "name": "Thyme",
+      "category": "fresh-fruit",
+      "keywords": [
+        "thyme",
+        "herb",
+        "fresh"
+      ]
+    },
+    {
+      "name": "Tomatoes",
+      "category": "fresh-fruit",
+      "keywords": [
+        "tomato",
+        "tomatoes",
+        "veg",
+        "vine"
+      ]
+    },
+    {
+      "name": "Tulips",
+      "category": "fresh-fruit",
+      "keywords": [
+        "tulip",
+        "flowers"
+      ]
+    },
+    {
+      "name": "Turnips",
+      "category": "fresh-fruit",
+      "keywords": [
+        "turnip",
+        "turnips",
+        "root",
+        "veg"
+      ]
+    },
+    {
+      "name": "Watercress",
+      "category": "fresh-fruit",
+      "keywords": [
+        "watercress",
+        "salad",
+        "leaves"
+      ]
+    },
+    {
+      "name": "Brie",
+      "category": "milk-cheese",
+      "keywords": [
+        "brie",
+        "cheese",
+        "soft"
+      ]
+    },
+    {
+      "name": "Butter",
+      "category": "milk-cheese",
+      "keywords": [
+        "butter",
+        "spread",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Cheddar Cheese",
+      "category": "milk-cheese",
+      "keywords": [
+        "cheddar",
+        "cheese",
+        "dairy",
+        "mild",
+        "mature"
+      ]
+    },
+    {
+      "name": "Clotted Cream",
+      "category": "milk-cheese",
+      "keywords": [
+        "clotted cream",
+        "cream",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Cottage Cheese",
+      "category": "milk-cheese",
+      "keywords": [
+        "cottage cheese",
+        "cheese",
+        "low fat"
+      ]
+    },
+    {
+      "name": "Cream",
+      "category": "milk-cheese",
+      "keywords": [
+        "cream",
+        "double cream",
+        "single",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Cream Cheese",
+      "category": "milk-cheese",
+      "keywords": [
+        "cream cheese",
+        "philadelphia",
+        "soft cheese"
+      ]
+    },
+    {
+      "name": "Crème Fraîche",
+      "category": "milk-cheese",
+      "keywords": [
+        "creme fraiche",
+        "cream",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Eggs",
+      "category": "milk-cheese",
+      "keywords": [
+        "eggs",
+        "egg",
+        "free range",
+        "medium",
+        "large"
+      ]
+    },
+    {
+      "name": "Feta Cheese",
+      "category": "milk-cheese",
+      "keywords": [
+        "feta",
+        "cheese",
+        "greek"
+      ]
+    },
+    {
+      "name": "Goat's Cheese",
+      "category": "milk-cheese",
+      "keywords": [
+        "goat cheese",
+        "goats",
+        "soft"
+      ]
+    },
+    {
+      "name": "Halloumi",
+      "category": "milk-cheese",
+      "keywords": [
+        "halloumi",
+        "cheese",
+        "grilling"
+      ]
+    },
+    {
+      "name": "Semi Skimmed Milk",
+      "category": "milk-cheese",
+      "keywords": [
+        "milk",
+        "semi skimmed",
+        "dairy",
+        "2%"
+      ]
+    },
+    {
+      "name": "Skimmed Milk",
+      "category": "milk-cheese",
+      "keywords": [
+        "milk",
+        "skimmed",
+        "dairy",
+        "fat free"
+      ]
+    },
+    {
+      "name": "Whole Milk",
+      "category": "milk-cheese",
+      "keywords": [
+        "milk",
+        "whole milk",
+        "full fat",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Mozzarella",
+      "category": "milk-cheese",
+      "keywords": [
+        "mozzarella",
+        "cheese",
+        "pizza",
+        "italian"
+      ]
+    },
+    {
+      "name": "Oat Milk",
+      "category": "milk-cheese",
+      "keywords": [
+        "oat milk",
+        "oat",
+        "dairy free",
+        "alternative"
+      ]
+    },
+    {
+      "name": "Parmesan",
+      "category": "milk-cheese",
+      "keywords": [
+        "parmesan",
+        "parmigiano",
+        "cheese",
+        "italian"
+      ]
+    },
+    {
+      "name": "Sour Cream",
+      "category": "milk-cheese",
+      "keywords": [
+        "sour cream",
+        "cream",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Stilton",
+      "category": "milk-cheese",
+      "keywords": [
+        "stilton",
+        "blue cheese",
+        "cheese"
+      ]
+    },
+    {
+      "name": "Vegan Cheese",
+      "category": "milk-cheese",
+      "keywords": [
+        "vegan cheese",
+        "dairy free",
+        "plant based"
+      ]
+    },
+    {
+      "name": "Greek Yoghurt",
+      "category": "milk-cheese",
+      "keywords": [
+        "yogurt",
+        "yoghurt",
+        "greek",
+        "dairy"
+      ]
+    },
+    {
+      "name": "Natural Yoghurt",
+      "category": "milk-cheese",
+      "keywords": [
+        "yogurt",
+        "yoghurt",
+        "natural",
+        "plain"
+      ]
+    },
+    {
+      "name": "Chorizo",
+      "category": "deli",
+      "keywords": [
+        "chorizo",
+        "sausage",
+        "spanish",
+        "deli"
+      ]
+    },
+    {
+      "name": "Cooked Chicken",
+      "category": "deli",
+      "keywords": [
+        "cooked chicken",
+        "chicken",
+        "deli",
+        "sliced"
+      ]
+    },
+    {
+      "name": "Ham Sliced",
+      "category": "deli",
+      "keywords": [
+        "ham",
+        "sliced",
+        "deli",
+        "cooked"
+      ]
+    },
+    {
+      "name": "Hummus",
+      "category": "deli",
+      "keywords": [
+        "hummus",
+        "houmous",
+        "dip",
+        "deli"
+      ]
+    },
+    {
+      "name": "Olives",
+      "category": "deli",
+      "keywords": [
+        "olives",
+        "olive",
+        "black",
+        "green",
+        "deli"
+      ]
+    },
+    {
+      "name": "Pastrami",
+      "category": "deli",
+      "keywords": [
+        "pastrami",
+        "deli",
+        "beef",
+        "sliced"
+      ]
+    },
+    {
+      "name": "Pâté",
+      "category": "deli",
+      "keywords": [
+        "pate",
+        "pâté",
+        "deli",
+        "liver"
+      ]
+    },
+    {
+      "name": "Pepperoni",
+      "category": "deli",
+      "keywords": [
+        "pepperoni",
+        "pizza",
+        "deli",
+        "sliced"
+      ]
+    },
+    {
+      "name": "Prosciutto",
+      "category": "deli",
+      "keywords": [
+        "prosciutto",
+        "parma ham",
+        "italian",
+        "deli"
+      ]
+    },
+    {
+      "name": "Salami",
+      "category": "deli",
+      "keywords": [
+        "salami",
+        "deli",
+        "italian",
+        "sliced"
+      ]
+    },
+    {
+      "name": "Smoked Salmon",
+      "category": "deli",
+      "keywords": [
+        "smoked salmon",
+        "salmon",
+        "fish",
+        "deli"
+      ]
+    },
+    {
+      "name": "Taramasalata",
+      "category": "deli",
+      "keywords": [
+        "taramasalata",
+        "dip",
+        "fish",
+        "deli"
+      ]
+    },
+    {
+      "name": "Turkey Sliced",
+      "category": "deli",
+      "keywords": [
+        "turkey",
+        "sliced",
+        "deli",
+        "cooked"
+      ]
+    },
+    {
+      "name": "Tzatziki",
+      "category": "deli",
+      "keywords": [
+        "tzatziki",
+        "dip",
+        "greek",
+        "deli"
+      ]
+    },
+    {
+      "name": "Beef Mince",
+      "category": "meat",
+      "keywords": [
+        "beef mince",
+        "mince",
+        "ground beef",
+        "meat"
+      ]
+    },
+    {
+      "name": "Beef Steak",
+      "category": "meat",
+      "keywords": [
+        "steak",
+        "beef",
+        "sirloin",
+        "ribeye",
+        "meat"
+      ]
+    },
+    {
+      "name": "Chicken Breast",
+      "category": "meat",
+      "keywords": [
+        "chicken breast",
+        "chicken",
+        "poultry",
+        "meat"
+      ]
+    },
+    {
+      "name": "Chicken Thighs",
+      "category": "meat",
+      "keywords": [
+        "chicken thigh",
+        "thighs",
+        "chicken",
+        "meat"
+      ]
+    },
+    {
+      "name": "Chicken Wings",
+      "category": "meat",
+      "keywords": [
+        "wings",
+        "chicken wings",
+        "chicken",
+        "meat"
+      ]
+    },
+    {
+      "name": "Cod Fillet",
+      "category": "meat",
+      "keywords": [
+        "cod",
+        "fish",
+        "fillet",
+        "white fish"
+      ]
+    },
+    {
+      "name": "Haddock",
+      "category": "meat",
+      "keywords": [
+        "haddock",
+        "fish",
+        "fillet",
+        "white fish"
+      ]
+    },
+    {
+      "name": "Lamb Chops",
+      "category": "meat",
+      "keywords": [
+        "lamb",
+        "chops",
+        "meat"
+      ]
+    },
+    {
+      "name": "Lamb Mince",
+      "category": "meat",
+      "keywords": [
+        "lamb mince",
+        "mince",
+        "lamb",
+        "meat"
+      ]
+    },
+    {
+      "name": "Mackerel",
+      "category": "meat",
+      "keywords": [
+        "mackerel",
+        "fish",
+        "oily"
+      ]
+    },
+    {
+      "name": "Pork Chops",
+      "category": "meat",
+      "keywords": [
+        "pork chops",
+        "pork",
+        "chops",
+        "meat"
+      ]
+    },
+    {
+      "name": "Pork Mince",
+      "category": "meat",
+      "keywords": [
+        "pork mince",
+        "mince",
+        "pork",
+        "meat"
+      ]
+    },
+    {
+      "name": "Prawns",
+      "category": "meat",
+      "keywords": [
+        "prawns",
+        "shrimp",
+        "seafood"
+      ]
+    },
+    {
+      "name": "Salmon Fillet",
+      "category": "meat",
+      "keywords": [
+        "salmon",
+        "fish",
+        "fillet",
+        "oily"
+      ]
+    },
+    {
+      "name": "Sausages",
+      "category": "meat",
+      "keywords": [
+        "sausages",
+        "bangers",
+        "pork",
+        "meat"
+      ]
+    },
+    {
+      "name": "Tuna Steak",
+      "category": "meat",
+      "keywords": [
+        "tuna steak",
+        "tuna",
+        "fish"
+      ]
+    },
+    {
+      "name": "Turkey Mince",
+      "category": "meat",
+      "keywords": [
+        "turkey mince",
+        "mince",
+        "turkey",
+        "meat"
+      ]
+    },
+    {
+      "name": "Whole Chicken",
+      "category": "meat",
+      "keywords": [
+        "whole chicken",
+        "roast chicken",
+        "chicken",
+        "meat"
+      ]
+    },
+    {
+      "name": "Whole Salmon",
+      "category": "meat",
+      "keywords": [
+        "whole salmon",
+        "salmon",
+        "fish"
+      ]
+    },
+    {
+      "name": "Baked Beans",
+      "category": "tins",
+      "keywords": [
+        "baked beans",
+        "beans",
+        "tin",
+        "heinz"
+      ]
+    },
+    {
+      "name": "Black Beans",
+      "category": "tins",
+      "keywords": [
+        "black beans",
+        "beans",
+        "tin",
+        "can"
+      ]
+    },
+    {
+      "name": "Bread Flour",
+      "category": "tins",
+      "keywords": [
+        "bread flour",
+        "flour",
+        "strong",
+        "baking"
+      ]
+    },
+    {
+      "name": "Cereal",
+      "category": "tins",
+      "keywords": [
+        "cereal",
+        "cornflakes",
+        "shreddies",
+        "weetabix",
+        "breakfast"
+      ]
+    },
+    {
+      "name": "Chickpeas",
+      "category": "tins",
+      "keywords": [
+        "chickpeas",
+        "chickpea",
+        "tin",
+        "can"
+      ]
+    },
+    {
+      "name": "Chopped Tomatoes",
+      "category": "tins",
+      "keywords": [
+        "chopped tomatoes",
+        "tin tomatoes",
+        "plum",
+        "passata"
+      ]
+    },
+    {
+      "name": "Coconut Milk",
+      "category": "tins",
+      "keywords": [
+        "coconut milk",
+        "coconut cream",
+        "tin"
+      ]
+    },
+    {
+      "name": "Cornflour",
+      "category": "tins",
+      "keywords": [
+        "cornflour",
+        "cornstarch",
+        "thickener"
+      ]
+    },
+    {
+      "name": "Couscous",
+      "category": "tins",
+      "keywords": [
+        "couscous",
+        "grain",
+        "packet"
+      ]
+    },
+    {
+      "name": "Curry Paste",
+      "category": "tins",
+      "keywords": [
+        "curry paste",
+        "korma",
+        "tikka",
+        "balti",
+        "thai"
+      ]
+    },
+    {
+      "name": "Dried Lentils",
+      "category": "tins",
+      "keywords": [
+        "lentils",
+        "red lentils",
+        "green lentils",
+        "packet"
+      ]
+    },
+    {
+      "name": "Plain Flour",
+      "category": "tins",
+      "keywords": [
+        "flour",
+        "plain flour",
+        "baking",
+        "packet"
+      ]
+    },
+    {
+      "name": "Self Raising Flour",
+      "category": "tins",
+      "keywords": [
+        "self raising flour",
+        "flour",
+        "baking"
+      ]
+    },
+    {
+      "name": "Honey",
+      "category": "tins",
+      "keywords": [
+        "honey",
+        "jar",
+        "blossom"
+      ]
+    },
+    {
+      "name": "Jam",
+      "category": "tins",
+      "keywords": [
+        "jam",
+        "strawberry jam",
+        "raspberry jam",
+        "marmalade"
+      ]
+    },
+    {
+      "name": "Kidney Beans",
+      "category": "tins",
+      "keywords": [
+        "kidney beans",
+        "red kidney",
+        "beans",
+        "tin"
+      ]
+    },
+    {
+      "name": "Canned Lentils",
+      "category": "tins",
+      "keywords": [
+        "lentils",
+        "tin",
+        "can",
+        "packet"
+      ]
+    },
+    {
+      "name": "Noodles",
+      "category": "tins",
+      "keywords": [
+        "noodles",
+        "dried",
+        "packet",
+        "egg noodles"
+      ]
+    },
+    {
+      "name": "Porridge Oats",
+      "category": "tins",
+      "keywords": [
+        "oats",
+        "porridge",
+        "rolled oats",
+        "breakfast"
+      ]
+    },
+    {
+      "name": "Olive Oil",
+      "category": "tins",
+      "keywords": [
+        "olive oil",
+        "oil",
+        "cooking",
+        "extra virgin"
+      ]
+    },
+    {
+      "name": "Sunflower Oil",
+      "category": "tins",
+      "keywords": [
+        "sunflower oil",
+        "oil",
+        "vegetable oil",
+        "cooking"
+      ]
+    },
+    {
+      "name": "Pasta",
+      "category": "tins",
+      "keywords": [
+        "pasta",
+        "spaghetti",
+        "penne",
+        "fusilli",
+        "dried"
+      ]
+    },
+    {
+      "name": "Peanut Butter",
+      "category": "tins",
+      "keywords": [
+        "peanut butter",
+        "smooth",
+        "crunchy",
+        "nut butter"
+      ]
+    },
+    {
+      "name": "Quinoa",
+      "category": "tins",
+      "keywords": [
+        "quinoa",
+        "grain",
+        "packet",
+        "superfood"
+      ]
+    },
+    {
+      "name": "Basmati Rice",
+      "category": "tins",
+      "keywords": [
+        "rice",
+        "basmati",
+        "long grain",
+        "packet"
+      ]
+    },
+    {
+      "name": "Rice Pudding",
+      "category": "tins",
+      "keywords": [
+        "rice pudding",
+        "pudding",
+        "tin",
+        "dessert"
+      ]
+    },
+    {
+      "name": "Salt",
+      "category": "tins",
+      "keywords": [
+        "salt",
+        "sea salt",
+        "table salt"
+      ]
+    },
+    {
+      "name": "Tomato Soup",
+      "category": "tins",
+      "keywords": [
+        "tomato soup",
+        "soup",
+        "tin",
+        "can"
+      ]
+    },
+    {
+      "name": "Chicken Soup",
+      "category": "tins",
+      "keywords": [
+        "chicken soup",
+        "soup",
+        "tin",
+        "can"
+      ]
+    },
+    {
+      "name": "Soy Sauce",
+      "category": "tins",
+      "keywords": [
+        "soy sauce",
+        "soya",
+        "sauce",
+        "cooking"
+      ]
+    },
+    {
+      "name": "Caster Sugar",
+      "category": "tins",
+      "keywords": [
+        "caster sugar",
+        "sugar",
+        "baking"
+      ]
+    },
+    {
+      "name": "Granulated Sugar",
+      "category": "tins",
+      "keywords": [
+        "granulated sugar",
+        "sugar",
+        "white"
+      ]
+    },
+    {
+      "name": "Tomato Puree",
+      "category": "tins",
+      "keywords": [
+        "tomato puree",
+        "paste",
+        "cooking"
+      ]
+    },
+    {
+      "name": "Canned Tuna",
+      "category": "tins",
+      "keywords": [
+        "tuna",
+        "tinned tuna",
+        "can",
+        "fish"
+      ]
+    },
+    {
+      "name": "Balsamic Vinegar",
+      "category": "tins",
+      "keywords": [
+        "balsamic vinegar",
+        "vinegar",
+        "condiment"
+      ]
+    },
+    {
+      "name": "White Vinegar",
+      "category": "tins",
+      "keywords": [
+        "white vinegar",
+        "malt vinegar",
+        "vinegar"
+      ]
+    },
+    {
+      "name": "Worcestershire Sauce",
+      "category": "tins",
+      "keywords": [
+        "worcestershire sauce",
+        "worcester",
+        "lea perrins",
+        "sauce"
+      ]
+    },
+    {
+      "name": "Bagels",
+      "category": "bakery",
+      "keywords": [
+        "bagels",
+        "bagel",
+        "bread"
+      ]
+    },
+    {
+      "name": "Baguette",
+      "category": "bakery",
+      "keywords": [
+        "baguette",
+        "french bread",
+        "bread"
+      ]
+    },
+    {
+      "name": "White Bread",
+      "category": "bakery",
+      "keywords": [
+        "white bread",
+        "bread",
+        "loaf",
+        "sandwich"
+      ]
+    },
+    {
+      "name": "Wholemeal Bread",
+      "category": "bakery",
+      "keywords": [
+        "wholemeal bread",
+        "brown bread",
+        "bread",
+        "loaf"
+      ]
+    },
+    {
+      "name": "Seeded Bread",
+      "category": "bakery",
+      "keywords": [
+        "seeded bread",
+        "bread",
+        "loaf",
+        "granary"
+      ]
+    },
+    {
+      "name": "Brioche",
+      "category": "bakery",
+      "keywords": [
+        "brioche",
+        "bread",
+        "sweet",
+        "bun"
+      ]
+    },
+    {
+      "name": "Croissants",
+      "category": "bakery",
+      "keywords": [
+        "croissants",
+        "croissant",
+        "pastry",
+        "french"
+      ]
+    },
+    {
+      "name": "Danish Pastries",
+      "category": "bakery",
+      "keywords": [
+        "danish",
+        "pastry",
+        "pain au chocolat"
+      ]
+    },
+    {
+      "name": "Doughnuts",
+      "category": "bakery",
+      "keywords": [
+        "doughnut",
+        "donut",
+        "ring"
+      ]
+    },
+    {
+      "name": "Hot Cross Buns",
+      "category": "bakery",
+      "keywords": [
+        "hot cross buns",
+        "buns",
+        "easter"
+      ]
+    },
+    {
+      "name": "Muffins",
+      "category": "bakery",
+      "keywords": [
+        "muffin",
+        "english muffin",
+        "blueberry"
+      ]
+    },
+    {
+      "name": "Naan Bread",
+      "category": "bakery",
+      "keywords": [
+        "naan",
+        "flatbread",
+        "indian",
+        "bread"
+      ]
+    },
+    {
+      "name": "Pitta Bread",
+      "category": "bakery",
+      "keywords": [
+        "pitta",
+        "pita",
+        "flatbread",
+        "bread"
+      ]
+    },
+    {
+      "name": "Rolls",
+      "category": "bakery",
+      "keywords": [
+        "rolls",
+        "bread rolls",
+        "buns",
+        "bap"
+      ]
+    },
+    {
+      "name": "Scones",
+      "category": "bakery",
+      "keywords": [
+        "scones",
+        "scone",
+        "cream tea"
+      ]
+    },
+    {
+      "name": "Sourdough",
+      "category": "bakery",
+      "keywords": [
+        "sourdough",
+        "bread",
+        "artisan",
+        "loaf"
+      ]
+    },
+    {
+      "name": "Tortilla Wraps",
+      "category": "bakery",
+      "keywords": [
+        "wraps",
+        "tortilla",
+        "flatbread"
+      ]
+    },
+    {
+      "name": "Almond Milk",
+      "category": "drinks",
+      "keywords": [
+        "almond milk",
+        "dairy free",
+        "nut milk"
+      ]
+    },
+    {
+      "name": "Apple Juice",
+      "category": "drinks",
+      "keywords": [
+        "apple juice",
+        "juice",
+        "fruit juice"
+      ]
+    },
+    {
+      "name": "Coca Cola",
+      "category": "drinks",
+      "keywords": [
+        "coke",
+        "cola",
+        "coca cola",
+        "soft drink"
+      ]
+    },
+    {
+      "name": "Coffee Beans",
+      "category": "drinks",
+      "keywords": [
+        "coffee beans",
+        "coffee",
+        "espresso",
+        "beans"
+      ]
+    },
+    {
+      "name": "Ground Coffee",
+      "category": "drinks",
+      "keywords": [
+        "ground coffee",
+        "coffee",
+        "filter"
+      ]
+    },
+    {
+      "name": "Instant Coffee",
+      "category": "drinks",
+      "keywords": [
+        "instant coffee",
+        "coffee",
+        "nescafe",
+        "jar"
+      ]
+    },
+    {
+      "name": "Cordial",
+      "category": "drinks",
+      "keywords": [
+        "cordial",
+        "squash",
+        "ribena",
+        "fruit"
+      ]
+    },
+    {
+      "name": "Decaf Coffee",
+      "category": "drinks",
+      "keywords": [
+        "decaf coffee",
+        "coffee",
+        "decaffeinated"
+      ]
+    },
+    {
+      "name": "Diet Coke",
+      "category": "drinks",
+      "keywords": [
+        "diet coke",
+        "cola",
+        "soft drink",
+        "diet"
+      ]
+    },
+    {
+      "name": "Energy Drink",
+      "category": "drinks",
+      "keywords": [
+        "energy drink",
+        "red bull",
+        "monster",
+        "can"
+      ]
+    },
+    {
+      "name": "Herbal Tea",
+      "category": "drinks",
+      "keywords": [
+        "herbal tea",
+        "tea",
+        "peppermint",
+        "camomile"
+      ]
+    },
+    {
+      "name": "Hot Chocolate",
+      "category": "drinks",
+      "keywords": [
+        "hot chocolate",
+        "cocoa",
+        "drinking chocolate"
+      ]
+    },
+    {
+      "name": "Lemonade",
+      "category": "drinks",
+      "keywords": [
+        "lemonade",
+        "fizzy",
+        "soft drink"
+      ]
+    },
+    {
+      "name": "Lucozade",
+      "category": "drinks",
+      "keywords": [
+        "lucozade",
+        "sports drink",
+        "energy"
+      ]
+    },
+    {
+      "name": "Oat Milk",
+      "category": "drinks",
+      "keywords": [
+        "oat milk",
+        "oat",
+        "dairy free"
+      ]
+    },
+    {
+      "name": "Orange Juice",
+      "category": "drinks",
+      "keywords": [
+        "orange juice",
+        "oj",
+        "juice",
+        "fresh"
+      ]
+    },
+    {
+      "name": "Ribena",
+      "category": "drinks",
+      "keywords": [
+        "ribena",
+        "blackcurrant",
+        "juice",
+        "cordial"
+      ]
+    },
+    {
+      "name": "Sparkling Water",
+      "category": "drinks",
+      "keywords": [
+        "sparkling water",
+        "fizzy water",
+        "soda water"
+      ]
+    },
+    {
+      "name": "Squash",
+      "category": "drinks",
+      "keywords": [
+        "squash",
+        "cordial",
+        "orange squash",
+        "dilute"
+      ]
+    },
+    {
+      "name": "Tea Bags",
+      "category": "drinks",
+      "keywords": [
+        "tea",
+        "teabags",
+        "yorkshire tea",
+        "pg tips",
+        "breakfast tea"
+      ]
+    },
+    {
+      "name": "Tonic Water",
+      "category": "drinks",
+      "keywords": [
+        "tonic water",
+        "tonic",
+        "schweppes"
+      ]
+    },
+    {
+      "name": "Bottled Water",
+      "category": "drinks",
+      "keywords": [
+        "water",
+        "bottled water",
+        "still",
+        "evian",
+        "highland"
+      ]
+    },
+    {
+      "name": "Lager",
+      "category": "alcohol",
+      "keywords": [
+        "beer",
+        "lager",
+        "heineken",
+        "stella",
+        "peroni"
+      ]
+    },
+    {
+      "name": "Ale",
+      "category": "alcohol",
+      "keywords": [
+        "ale",
+        "beer",
+        "ipa",
+        "bitter",
+        "craft"
+      ]
+    },
+    {
+      "name": "Champagne",
+      "category": "alcohol",
+      "keywords": [
+        "champagne",
+        "sparkling",
+        "wine",
+        "celebration"
+      ]
+    },
+    {
+      "name": "Cider",
+      "category": "alcohol",
+      "keywords": [
+        "cider",
+        "apple",
+        "rekorderlig",
+        "kopparberg"
+      ]
+    },
+    {
+      "name": "Gin",
+      "category": "alcohol",
+      "keywords": [
+        "gin",
+        "spirit",
+        "hendricks",
+        "tanqueray",
+        "bombay"
+      ]
+    },
+    {
+      "name": "Guinness",
+      "category": "alcohol",
+      "keywords": [
+        "guinness",
+        "stout",
+        "beer",
+        "irish"
+      ]
+    },
+    {
+      "name": "Prosecco",
+      "category": "alcohol",
+      "keywords": [
+        "prosecco",
+        "sparkling wine",
+        "fizz"
+      ]
+    },
+    {
+      "name": "Red Wine",
+      "category": "alcohol",
+      "keywords": [
+        "red wine",
+        "wine",
+        "merlot",
+        "cabernet",
+        "rioja"
+      ]
+    },
+    {
+      "name": "Rosé Wine",
+      "category": "alcohol",
+      "keywords": [
+        "rose wine",
+        "rosé",
+        "wine",
+        "pink"
+      ]
+    },
+    {
+      "name": "Rum",
+      "category": "alcohol",
+      "keywords": [
+        "rum",
+        "spirit",
+        "dark rum",
+        "white rum",
+        "bacardi"
+      ]
+    },
+    {
+      "name": "Vodka",
+      "category": "alcohol",
+      "keywords": [
+        "vodka",
+        "spirit",
+        "smirnoff",
+        "grey goose"
+      ]
+    },
+    {
+      "name": "Whisky",
+      "category": "alcohol",
+      "keywords": [
+        "whisky",
+        "whiskey",
+        "scotch",
+        "bourbon",
+        "spirit"
+      ]
+    },
+    {
+      "name": "White Wine",
+      "category": "alcohol",
+      "keywords": [
+        "white wine",
+        "wine",
+        "sauvignon blanc",
+        "pinot grigio"
+      ]
+    },
+    {
+      "name": "Frozen Berries",
+      "category": "frozen",
+      "keywords": [
+        "frozen berries",
+        "berries",
+        "mixed",
+        "frozen"
+      ]
+    },
+    {
+      "name": "Frozen Chips",
+      "category": "frozen",
+      "keywords": [
+        "frozen chips",
+        "chips",
+        "fries",
+        "oven chips"
+      ]
+    },
+    {
+      "name": "Frozen Chicken Nuggets",
+      "category": "frozen",
+      "keywords": [
+        "nuggets",
+        "chicken nuggets",
+        "frozen",
+        "kids"
+      ]
+    },
+    {
+      "name": "Frozen Edamame",
+      "category": "frozen",
+      "keywords": [
+        "edamame",
+        "soya beans",
+        "frozen"
+      ]
+    },
+    {
+      "name": "Frozen Fish Fingers",
+      "category": "frozen",
+      "keywords": [
+        "fish fingers",
+        "fish",
+        "frozen",
+        "birds eye"
+      ]
+    },
+    {
+      "name": "Frozen Peas",
+      "category": "frozen",
+      "keywords": [
+        "frozen peas",
+        "peas",
+        "veg",
+        "frozen"
+      ]
+    },
+    {
+      "name": "Frozen Pizza",
+      "category": "frozen",
+      "keywords": [
+        "pizza",
+        "frozen pizza",
+        "oven pizza"
+      ]
+    },
+    {
+      "name": "Frozen Prawns",
+      "category": "frozen",
+      "keywords": [
+        "frozen prawns",
+        "prawns",
+        "seafood",
+        "frozen"
+      ]
+    },
+    {
+      "name": "Frozen Spinach",
+      "category": "frozen",
+      "keywords": [
+        "frozen spinach",
+        "spinach",
+        "veg",
+        "frozen"
+      ]
+    },
+    {
+      "name": "Frozen Sweetcorn",
+      "category": "frozen",
+      "keywords": [
+        "frozen sweetcorn",
+        "sweetcorn",
+        "corn",
+        "frozen"
+      ]
+    },
+    {
+      "name": "Frozen Vegetable Mix",
+      "category": "frozen",
+      "keywords": [
+        "mixed veg",
+        "vegetables",
+        "frozen",
+        "mixed"
+      ]
+    },
+    {
+      "name": "Ice Cream",
+      "category": "frozen",
+      "keywords": [
+        "ice cream",
+        "vanilla",
+        "chocolate",
+        "frozen dessert"
+      ]
+    },
+    {
+      "name": "Ice Lollies",
+      "category": "frozen",
+      "keywords": [
+        "ice lolly",
+        "lollies",
+        "frozen",
+        "kids"
+      ]
+    },
+    {
+      "name": "Potato Waffles",
+      "category": "frozen",
+      "keywords": [
+        "waffles",
+        "potato waffles",
+        "frozen",
+        "birds eye"
+      ]
+    },
+    {
+      "name": "Oven Chips",
+      "category": "frozen",
+      "keywords": [
+        "oven chips",
+        "chips",
+        "frozen",
+        "mccain"
+      ]
+    },
+    {
+      "name": "Cat Food",
+      "category": "pets",
+      "keywords": [
+        "cat food",
+        "whiskas",
+        "felix",
+        "pet"
+      ]
+    },
+    {
+      "name": "Cat Litter",
+      "category": "pets",
+      "keywords": [
+        "cat litter",
+        "litter",
+        "cat"
+      ]
+    },
+    {
+      "name": "Cat Treats",
+      "category": "pets",
+      "keywords": [
+        "cat treats",
+        "treats",
+        "cat",
+        "pet"
+      ]
+    },
+    {
+      "name": "Dog Food",
+      "category": "pets",
+      "keywords": [
+        "dog food",
+        "pedigree",
+        "winalot",
+        "kibble",
+        "pet"
+      ]
+    },
+    {
+      "name": "Dog Treats",
+      "category": "pets",
+      "keywords": [
+        "dog treats",
+        "treats",
+        "dog",
+        "pet"
+      ]
+    },
+    {
+      "name": "Fish Food",
+      "category": "pets",
+      "keywords": [
+        "fish food",
+        "aquarium",
+        "pet"
+      ]
+    },
+    {
+      "name": "Puppy Food",
+      "category": "pets",
+      "keywords": [
+        "puppy food",
+        "puppy",
+        "dog",
+        "pet"
+      ]
+    },
+    {
+      "name": "Antibacterial Spray",
+      "category": "household",
+      "keywords": [
+        "antibacterial",
+        "dettol",
+        "spray",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Batteries",
+      "category": "household",
+      "keywords": [
+        "batteries",
+        "aa",
+        "aaa",
+        "battery"
+      ]
+    },
+    {
+      "name": "Bin Bags",
+      "category": "household",
+      "keywords": [
+        "bin bags",
+        "rubbish bags",
+        "bin liners",
+        "trash"
+      ]
+    },
+    {
+      "name": "Bleach",
+      "category": "household",
+      "keywords": [
+        "bleach",
+        "cleaning",
+        "bathroom",
+        "toilet"
+      ]
+    },
+    {
+      "name": "Candles",
+      "category": "household",
+      "keywords": [
+        "candles",
+        "candle",
+        "tealight",
+        "household"
+      ]
+    },
+    {
+      "name": "Cling Film",
+      "category": "household",
+      "keywords": [
+        "cling film",
+        "plastic wrap",
+        "food wrap"
+      ]
+    },
+    {
+      "name": "Dishwasher Tablets",
+      "category": "household",
+      "keywords": [
+        "dishwasher tablets",
+        "dishwasher",
+        "finish",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Dish Soap",
+      "category": "household",
+      "keywords": [
+        "dish soap",
+        "fairy",
+        "washing up liquid",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Fabric Softener",
+      "category": "household",
+      "keywords": [
+        "fabric softener",
+        "conditioner",
+        "lenor",
+        "laundry"
+      ]
+    },
+    {
+      "name": "Foil",
+      "category": "household",
+      "keywords": [
+        "foil",
+        "tin foil",
+        "aluminium foil",
+        "kitchen"
+      ]
+    },
+    {
+      "name": "Hand Sanitiser",
+      "category": "household",
+      "keywords": [
+        "hand sanitiser",
+        "sanitizer",
+        "gel",
+        "antibacterial"
+      ]
+    },
+    {
+      "name": "Kitchen Roll",
+      "category": "household",
+      "keywords": [
+        "kitchen roll",
+        "paper towel",
+        "kitchen",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Laundry Capsules",
+      "category": "household",
+      "keywords": [
+        "laundry capsules",
+        "pods",
+        "ariel",
+        "washing"
+      ]
+    },
+    {
+      "name": "Light Bulbs",
+      "category": "household",
+      "keywords": [
+        "light bulbs",
+        "led",
+        "bulb",
+        "lighting"
+      ]
+    },
+    {
+      "name": "Matches",
+      "category": "household",
+      "keywords": [
+        "matches",
+        "fire",
+        "lighter"
+      ]
+    },
+    {
+      "name": "Mop",
+      "category": "household",
+      "keywords": [
+        "mop",
+        "floor",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Oven Cleaner",
+      "category": "household",
+      "keywords": [
+        "oven cleaner",
+        "oven",
+        "cleaning",
+        "mr muscle"
+      ]
+    },
+    {
+      "name": "Rubber Gloves",
+      "category": "household",
+      "keywords": [
+        "rubber gloves",
+        "gloves",
+        "cleaning",
+        "marigold"
+      ]
+    },
+    {
+      "name": "Sponges",
+      "category": "household",
+      "keywords": [
+        "sponge",
+        "scourer",
+        "scrubber",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Toilet Paper",
+      "category": "household",
+      "keywords": [
+        "toilet paper",
+        "loo roll",
+        "toilet roll",
+        "tissue"
+      ]
+    },
+    {
+      "name": "Washing Powder",
+      "category": "household",
+      "keywords": [
+        "washing powder",
+        "laundry",
+        "ariel",
+        "persil",
+        "detergent"
+      ]
+    },
+    {
+      "name": "Washing Up Liquid",
+      "category": "household",
+      "keywords": [
+        "washing up liquid",
+        "fairy",
+        "dish soap",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Window Cleaner",
+      "category": "household",
+      "keywords": [
+        "window cleaner",
+        "glass cleaner",
+        "cleaning"
+      ]
+    },
+    {
+      "name": "Zip Lock Bags",
+      "category": "household",
+      "keywords": [
+        "zip lock",
+        "freezer bags",
+        "food bags"
+      ]
+    },
+    {
+      "name": "Deodorant",
+      "category": "other",
+      "keywords": [
+        "deodorant",
+        "antiperspirant",
+        "spray",
+        "roll on"
+      ]
+    },
+    {
+      "name": "Dental Floss",
+      "category": "other",
+      "keywords": [
+        "dental floss",
+        "floss",
+        "dental",
+        "teeth"
+      ]
+    },
+    {
+      "name": "Face Cream",
+      "category": "other",
+      "keywords": [
+        "face cream",
+        "moisturiser",
+        "skin care",
+        "beauty"
+      ]
+    },
+    {
+      "name": "Face Wash",
+      "category": "other",
+      "keywords": [
+        "face wash",
+        "cleanser",
+        "skin care"
+      ]
+    },
+    {
+      "name": "Ibuprofen",
+      "category": "other",
+      "keywords": [
+        "ibuprofen",
+        "nurofen",
+        "pain relief",
+        "medicine"
+      ]
+    },
+    {
+      "name": "Lip Balm",
+      "category": "other",
+      "keywords": [
+        "lip balm",
+        "chapstick",
+        "vaseline"
+      ]
+    },
+    {
+      "name": "Nappies",
+      "category": "other",
+      "keywords": [
+        "nappies",
+        "nappy",
+        "pampers",
+        "huggies",
+        "baby"
+      ]
+    },
+    {
+      "name": "Paracetamol",
+      "category": "other",
+      "keywords": [
+        "paracetamol",
+        "pain relief",
+        "headache",
+        "medicine"
+      ]
+    },
+    {
+      "name": "Razors",
+      "category": "other",
+      "keywords": [
+        "razors",
+        "razor",
+        "shaving",
+        "blade",
+        "gillette"
+      ]
+    },
+    {
+      "name": "Shampoo",
+      "category": "other",
+      "keywords": [
+        "shampoo",
+        "hair",
+        "wash",
+        "head shoulders"
+      ]
+    },
+    {
+      "name": "Shaving Foam",
+      "category": "other",
+      "keywords": [
+        "shaving foam",
+        "shaving gel",
+        "shaving cream"
+      ]
+    },
+    {
+      "name": "Shower Gel",
+      "category": "other",
+      "keywords": [
+        "shower gel",
+        "body wash",
+        "soap",
+        "skin"
+      ]
+    },
+    {
+      "name": "Soap Bar",
+      "category": "other",
+      "keywords": [
+        "soap",
+        "bar soap",
+        "hand soap",
+        "wash"
+      ]
+    },
+    {
+      "name": "Sunscreen",
+      "category": "other",
+      "keywords": [
+        "sunscreen",
+        "suncream",
+        "spf",
+        "sun protection"
+      ]
+    },
+    {
+      "name": "Tampons",
+      "category": "other",
+      "keywords": [
+        "tampons",
+        "tampon",
+        "feminine hygiene"
+      ]
+    },
+    {
+      "name": "Toothbrush",
+      "category": "other",
+      "keywords": [
+        "toothbrush",
+        "brush",
+        "dental",
+        "oral b"
+      ]
+    },
+    {
+      "name": "Toothpaste",
+      "category": "other",
+      "keywords": [
+        "toothpaste",
+        "colgate",
+        "dental",
+        "teeth"
+      ]
+    },
+    {
+      "name": "Wet Wipes",
+      "category": "other",
+      "keywords": [
+        "wet wipes",
+        "wipes",
+        "baby wipes",
+        "cleaning"
+      ]
+    }
   ]
 }

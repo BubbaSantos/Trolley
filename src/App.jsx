@@ -12,16 +12,16 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.10.0'
+const VERSION = '2.10.1'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#94a3b8', '#78716c']
 
 const COMMON_ITEMS = [
-  { name: 'Milk Semi Skimmed',  category: 'milk-cheese' },
+  { name: 'Semi Skimmed Milk',  category: 'milk-cheese' },
   { name: 'Eggs',               category: 'milk-cheese' },
-  { name: 'Bread White',        category: 'bakery' },
+  { name: 'White Bread',        category: 'bakery' },
   { name: 'Butter',             category: 'milk-cheese' },
   { name: 'Cheddar Cheese',     category: 'milk-cheese' },
   { name: 'Chicken Breast',     category: 'meat' },
@@ -36,14 +36,14 @@ const COMMON_ITEMS = [
   { name: 'Broccoli',           category: 'fresh-fruit' },
   { name: 'Spinach',            category: 'fresh-fruit' },
   { name: 'Pasta',              category: 'tins' },
-  { name: 'Rice Basmati',       category: 'tins' },
+  { name: 'Basmati Rice',       category: 'tins' },
   { name: 'Chopped Tomatoes',   category: 'tins' },
   { name: 'Baked Beans',        category: 'tins' },
-  { name: 'Oil Olive',          category: 'tins' },
+  { name: 'Olive Oil',          category: 'tins' },
   { name: 'Tea Bags',           category: 'drinks' },
-  { name: 'Coffee Instant',     category: 'drinks' },
+  { name: 'Instant Coffee',     category: 'drinks' },
   { name: 'Orange Juice',       category: 'drinks' },
-  { name: 'Yoghurt Natural',    category: 'milk-cheese' },
+  { name: 'Natural Yoghurt',    category: 'milk-cheese' },
   { name: 'Sausages',           category: 'meat' },
   { name: 'Salmon Fillet',      category: 'meat' },
   { name: 'Toilet Paper',       category: 'household' },
@@ -52,7 +52,7 @@ const COMMON_ITEMS = [
   { name: 'Bin Bags',           category: 'household' },
   { name: 'Kitchen Roll',       category: 'household' },
   { name: 'Cereal',             category: 'tins' },
-  { name: 'Bread Wholemeal',    category: 'bakery' },
+  { name: 'Wholemeal Bread',    category: 'bakery' },
   { name: 'Lettuce',            category: 'fresh-fruit' },
   { name: 'Cucumbers',          category: 'fresh-fruit' },
   { name: 'Mushrooms',          category: 'fresh-fruit' },
@@ -921,20 +921,21 @@ export default function App() {
     if (oldBase.toLowerCase() !== newBase.toLowerCase()) {
       const existingOld = history.find(h => h.name.toLowerCase() === oldBase.toLowerCase())
       const existingNew = history.find(h => h.name.toLowerCase() === newBase.toLowerCase())
-      if (existingOld && !existingNew) {
-        const migrated = { ...existingOld, name: newBase }
-        setHistory(prev => prev.map(h => h.name.toLowerCase() === oldBase.toLowerCase() ? migrated : h))
-        if (navigator.onLine) {
-          await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
-          await supabase.from('list_history').upsert(migrated, { onConflict: 'list_code,name' })
-        }
-      } else if (existingOld && existingNew) {
-        setHistory(prev => prev.filter(h => h.name.toLowerCase() !== oldBase.toLowerCase()))
-        if (navigator.onLine) await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
-      } else if (!existingNew) {
-        const newEntry = { list_code: listCode, name: newBase, category_id: detailItem.category_id, count: 0, last_used: new Date().toISOString(), is_favourite: false }
-        setHistory(prev => [...prev, newEntry])
-        if (navigator.onLine) await supabase.from('list_history').upsert(newEntry, { onConflict: 'list_code,name' })
+      const merged = {
+        list_code: listCode,
+        name: newBase,
+        category_id: existingOld?.category_id || existingNew?.category_id || detailItem.category_id,
+        count: Math.max(existingOld?.count || 0, existingNew?.count || 0),
+        last_used: existingOld?.last_used || existingNew?.last_used || new Date().toISOString(),
+        is_favourite: existingOld?.is_favourite || existingNew?.is_favourite || false,
+      }
+      setHistory(prev => [
+        ...prev.filter(h => h.name.toLowerCase() !== oldBase.toLowerCase() && h.name.toLowerCase() !== newBase.toLowerCase()),
+        merged,
+      ])
+      if (navigator.onLine) {
+        if (existingOld) await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
+        await supabase.from('list_history').upsert(merged, { onConflict: 'list_code,name' })
       }
     }
   }

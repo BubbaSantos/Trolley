@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.9.1'
+const VERSION = '2.10.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -128,10 +128,20 @@ function useOnlineStatus() {
 function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
+  const [isPrimed, setIsPrimed] = useState(false)
   const txRef = useRef(0)
   const rowRef = useRef(null)
   const onDeleteRef = useRef(onDelete)
+  const primedTimerRef = useRef(null)
   useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
+
+  useEffect(() => {
+    if (isStriking) {
+      setIsPrimed(false)
+      clearTimeout(primedTimerRef.current)
+      lastTapRef.current[item.id] = 0
+    }
+  }, [isStriking, item.id])
 
   function setTx(v) { txRef.current = v; _setTx(v) }
 
@@ -173,9 +183,22 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   function handleClick(e) {
     if (txRef.current !== 0) { setAnimate(true); setTx(0); return }
     if (e.target.closest('button')) return
-    const now = Date.now(), last = lastTapRef.current[item.id] || 0
-    if (now - last < 400) { lastTapRef.current[item.id] = 0; onToggle(item.id, item.checked) }
-    else lastTapRef.current[item.id] = now
+    if (item.checked || isStriking) { onToggle(item.id, item.checked); return }
+    const now = Date.now()
+    if (isPrimed && now - (lastTapRef.current[item.id] || 0) < 2000) {
+      clearTimeout(primedTimerRef.current)
+      setIsPrimed(false)
+      lastTapRef.current[item.id] = 0
+      onToggle(item.id, item.checked)
+    } else {
+      lastTapRef.current[item.id] = now
+      setIsPrimed(true)
+      clearTimeout(primedTimerRef.current)
+      primedTimerRef.current = setTimeout(() => {
+        setIsPrimed(false)
+        lastTapRef.current[item.id] = 0
+      }, 2000)
+    }
   }
 
   const { qty, name: displayName } = parseItemName(item.name)
@@ -198,14 +221,22 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
         >
-          <button
-            className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
-            onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
-          >
-            <span className="checkmark">{item.checked || isStriking ? '✓' : ''}</span>
-          </button>
+          <div className="check-btn-wrap">
+            <button
+              className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
+              onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
+            >
+              <span className="checkmark">{item.checked || isStriking ? '✓' : ''}</span>
+            </button>
+            {isStriking && (
+              <svg className="check-clock" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
+              </svg>
+            )}
+          </div>
           <span className="item-name-group">
             {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+            {isPrimed && <span className="tap-hint">tap again to check</span>}
           </span>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>

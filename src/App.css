@@ -518,6 +518,14 @@ header h1 {
   transition: opacity 0.2s, text-decoration 0.2s;
 }
 
+.check-btn-wrap {
+  position: relative;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .check-btn {
   width: 1.375rem;
   height: 1.375rem;
@@ -531,6 +539,35 @@ header h1 {
   font-size: 0.75rem;
   flex-shrink: 0;
   transition: background 0.15s, border-color 0.15s;
+}
+
+.check-clock {
+  position: absolute;
+  width: 2rem;
+  height: 2rem;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
+  pointer-events: none;
+}
+.check-clock circle {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-dasharray: 100.53;
+  stroke-dashoffset: 100.53;
+  animation: clock-fill 2s linear forwards;
+}
+@keyframes clock-fill {
+  to { stroke-dashoffset: 0; }
+}
+
+.tap-hint {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--accent);
+  opacity: 0.8;
+  margin-top: 0.15rem;
+  animation: fade-in 0.15s ease;
 }
 
 .checkmark { line-height: 1; }

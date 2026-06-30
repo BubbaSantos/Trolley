@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.1'
+const VERSION = '2.14.2'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.13.5'
+const VERSION = '2.14.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -558,6 +558,7 @@ export default function App() {
   const historyRef = useRef([])
   const keepSuggestionsRef = useRef(false)
   const strikeTimerRef = useRef({})
+  const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
@@ -724,6 +725,16 @@ export default function App() {
     prevOnlineRef.current = online
   }, [online])
 
+  useEffect(() => {
+    function onVisible() {
+      if (document.visibilityState === 'visible' && listCodeRef.current && navigator.onLine) {
+        loadAndSubscribe(listCodeRef.current)
+      }
+    }
+    document.addEventListener('visibilitychange', onVisible)
+    return () => document.removeEventListener('visibilitychange', onVisible)
+  }, [])
+
   async function recordHistory(item) {
     const { name: cleanName } = parseItemName(item.name)
     const current = historyRef.current.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
@@ -771,6 +782,7 @@ export default function App() {
   }
 
   async function loadAndSubscribe(code) {
+    clearTimeout(reconnectTimerRef.current)
     channelRef.current?.unsubscribe()
     const cached = getCachedItems(code)
     if (cached.length > 0) setItems(cached)
@@ -797,7 +809,7 @@ export default function App() {
         }
         if (payload.eventType === 'UPDATE') {
           if (payload.new.list_code !== code) return
-          setItems(prev => { const next = prev.map(i => i.id === payload.new.id ? payload.new : i); setCachedItems(code, next); return next })
+          setItems(prev => { const next = prev.map(i => i.id === payload.new.id ? { ...i, ...payload.new } : i); setCachedItems(code, next); return next })
         }
         if (payload.eventType === 'DELETE') {
           const id = payload.old.id
@@ -821,7 +833,14 @@ export default function App() {
           setHistory(prev => prev.filter(h => h.name !== payload.old.name))
         }
       })
-      .subscribe()
+      .subscribe((status) => {
+        if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && listCodeRef.current) {
+          clearTimeout(reconnectTimerRef.current)
+          reconnectTimerRef.current = setTimeout(() => {
+            if (listCodeRef.current) loadAndSubscribe(listCodeRef.current)
+          }, 4000)
+        }
+      })
   }
 
   async function joinList(e) {

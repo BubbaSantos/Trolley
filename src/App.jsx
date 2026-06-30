@@ -491,6 +491,10 @@ export default function App() {
   const confirmTimerRef = useRef(null)
   const [settingsView, setSettingsView] = useState('main')
   const [settingsJoinCode, setSettingsJoinCode] = useState('')
+  const [settingsItemEditId, setSettingsItemEditId] = useState(null)
+  const [settingsItemEditName, setSettingsItemEditName] = useState('')
+  const [settingsItemSearch, setSettingsItemSearch] = useState('')
+  const [settingsAddInput, setSettingsAddInput] = useState('')
   const [addingCategory, setAddingCategory] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [newCatIcon, setNewCatIcon] = useState('')
@@ -584,6 +588,50 @@ export default function App() {
   function closeSettings() {
     setSettingsOpen(false); setSettingsView('main'); setSettingsJoinCode(''); setAddingCategory(false)
     setConfirming(null); clearTimeout(confirmTimerRef.current)
+    setSettingsItemEditId(null); setSettingsItemSearch(''); setSettingsAddInput('')
+  }
+
+  function settingsGoBack() {
+    setSettingsView('main'); setAddingCategory(false); setConfirming(null)
+    setSettingsItemEditId(null); setSettingsItemSearch(''); setSettingsAddInput('')
+  }
+
+  async function doSettingsSaveEdit(item) {
+    const newName = settingsItemEditName.trim()
+    setSettingsItemEditId(null)
+    if (!newName || newName === item.name) return
+    const update = { name: newName }
+    setItems(prev => { const next = prev.map(i => i.id === item.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
+    if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', item.id)
+    else enqueue({ type: 'UPDATE', id: item.id, data: update })
+    const { name: oldBase } = parseItemName(item.name)
+    const { name: newBase } = parseItemName(newName)
+    if (oldBase.toLowerCase() !== newBase.toLowerCase()) {
+      const existingOld = history.find(h => h.name.toLowerCase() === oldBase.toLowerCase())
+      const existingNew = history.find(h => h.name.toLowerCase() === newBase.toLowerCase())
+      const merged = {
+        list_code: listCode, name: newBase,
+        category_id: existingOld?.category_id || existingNew?.category_id || item.category_id,
+        count: Math.max(existingOld?.count || 0, existingNew?.count || 0),
+        last_used: existingOld?.last_used || existingNew?.last_used || new Date().toISOString(),
+        is_favourite: existingOld?.is_favourite || existingNew?.is_favourite || false,
+      }
+      setHistory(prev => [
+        ...prev.filter(h => h.name.toLowerCase() !== oldBase.toLowerCase() && h.name.toLowerCase() !== newBase.toLowerCase()),
+        merged,
+      ])
+      if (navigator.onLine) {
+        if (existingOld) await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
+        await supabase.from('list_history').upsert(merged, { onConflict: 'list_code,name' })
+      }
+    }
+  }
+
+  async function doSettingsAddItem() {
+    const raw = settingsAddInput.trim()
+    if (!raw) return
+    setSettingsAddInput('')
+    await addCustomItem(raw)
   }
 
   function requestConfirm(key) {
@@ -1297,9 +1345,6 @@ export default function App() {
                   </>
                 )
               })()}
-              <button className="detail-delete-btn" onClick={() => { const id = detailItem.id; setDetailItem(null); deleteItem(id) }}>
-                Delete item
-              </button>
             </div>
           </BottomSheet>
         </div>
@@ -1368,13 +1413,13 @@ export default function App() {
             <div className="sheet-header">
               <div
                 style={{ display: 'flex', alignItems: 'center', cursor: settingsView !== 'main' ? 'pointer' : 'default' }}
-                onClick={settingsView !== 'main' ? () => { setSettingsView('main'); setAddingCategory(false); setConfirming(null) } : undefined}
+                onClick={settingsView !== 'main' ? settingsGoBack : undefined}
               >
                 {settingsView !== 'main' && (
                   <span className="sheet-back">‹</span>
                 )}
                 <p className="sheet-title">
-                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : 'Manage Categories'}
+                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : settingsView === 'items' ? 'Manage Items' : 'Manage Categories'}
                 </p>
               </div>
               <button onClick={closeSettings} className="sheet-close">✕</button>
@@ -1396,6 +1441,13 @@ export default function App() {
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('items')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Manage Items</span>
+                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Edit, add or remove</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
                   <button className="settings-nav-item" onClick={() => setSettingsView('categories')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Manage Categories</span>
@@ -1412,6 +1464,62 @@ export default function App() {
                   </button>
                 </>
               )}
+              {settingsView === 'items' && (() => {
+                const filteredSettingsItems = [...items]
+                  .sort((a, b) => {
+                    if (a.checked !== b.checked) return a.checked ? 1 : -1
+                    return a.name.localeCompare(b.name)
+                  })
+                  .filter(i => !settingsItemSearch || i.name.toLowerCase().includes(settingsItemSearch.toLowerCase()))
+                return (
+                  <>
+                    <div className="settings-item-add-row">
+                      <input
+                        type="text" placeholder="Add item..." value={settingsAddInput}
+                        onChange={e => setSettingsAddInput(e.target.value)}
+                        className="settings-item-add-input" autoComplete="off"
+                        onKeyDown={e => { if (e.key === 'Enter') doSettingsAddItem() }}
+                      />
+                      <button className="settings-item-add-btn" onClick={doSettingsAddItem} disabled={!settingsAddInput.trim()}>Add</button>
+                    </div>
+                    <div className="settings-item-search-wrap">
+                      <input
+                        type="text" placeholder="Search…" value={settingsItemSearch}
+                        onChange={e => setSettingsItemSearch(e.target.value)}
+                        className="settings-item-search" autoComplete="off"
+                      />
+                    </div>
+                    {filteredSettingsItems.length === 0 ? (
+                      <p className="settings-item-empty">{settingsItemSearch ? 'No matches' : 'Your list is empty'}</p>
+                    ) : (
+                      <ul className="settings-item-list">
+                        {filteredSettingsItems.map(item => (
+                          <li key={item.id} className={`settings-item-row${item.checked ? ' checked' : ''}`}>
+                            {settingsItemEditId === item.id ? (
+                              <input
+                                type="text" value={settingsItemEditName}
+                                onChange={e => setSettingsItemEditName(e.target.value)}
+                                className="settings-item-edit-input" autoFocus autoComplete="off"
+                                onKeyDown={e => { if (e.key === 'Enter') doSettingsSaveEdit(item); if (e.key === 'Escape') setSettingsItemEditId(null) }}
+                                onBlur={() => doSettingsSaveEdit(item)}
+                              />
+                            ) : (
+                              <span
+                                className="settings-item-name"
+                                onClick={() => { setSettingsItemEditId(item.id); setSettingsItemEditName(item.name) }}
+                              >
+                                <span className="settings-item-cat-dot" style={{ background: getCat(item.category_id)?.color ?? '#64748b' }} />
+                                {item.name}
+                              </span>
+                            )}
+                            <button className="settings-item-delete-btn" onClick={() => deleteItem(item.id)} aria-label="Delete">✕</button>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </>
+                )
+              })()}
               {settingsView === 'appearance' && (
                 <>
                   <div className="settings-row">

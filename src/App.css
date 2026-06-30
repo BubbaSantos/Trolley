@@ -1539,6 +1539,159 @@ header h1 {
 
 .detail-delete-btn:hover { background: rgba(239,68,68,0.08); }
 
+/* ---- Detail sheet delete button ---- */
+
+.detail-delete-btn {
+  display: block;
+  width: calc(100% - 2.5rem);
+  margin: 0.25rem 1.25rem 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.875rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--red);
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.detail-delete-btn:hover { background: rgba(239,68,68,0.08); }
+
+/* ---- Manage Items submenu ---- */
+
+.settings-item-add-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem 0.5rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-item-add-input {
+  flex: 1;
+  padding: 0.6rem 0.875rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.settings-item-add-input:focus { border-color: var(--accent); }
+
+.settings-item-add-btn {
+  padding: 0.6rem 1rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 0.6rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.15s, opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.settings-item-add-btn:disabled { opacity: 0.35; cursor: default; }
+.settings-item-add-btn:not(:disabled):hover { background: var(--accent-hover); }
+
+.settings-item-search-wrap {
+  padding: 0.5rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.settings-item-search {
+  width: 100%;
+  padding: 0.55rem 0.875rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 0.6rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+}
+
+.settings-item-search:focus { border-color: var(--accent); }
+
+.settings-item-list {
+  list-style: none;
+  padding: 0.25rem 0 1rem;
+}
+
+.settings-item-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1rem 0.65rem 1.25rem;
+  border-bottom: 1px solid var(--border-subtle);
+  transition: background 0.1s;
+}
+
+.settings-item-row:last-child { border-bottom: none; }
+.settings-item-row.checked { opacity: 0.45; }
+
+.settings-item-name {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.9rem;
+  color: var(--text);
+  cursor: pointer;
+  padding: 0.2rem 0;
+}
+
+.settings-item-name:hover { color: var(--accent-light); }
+
+.settings-item-cat-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.settings-item-edit-input {
+  flex: 1;
+  padding: 0.3rem 0.6rem;
+  background: var(--bg);
+  border: 1px solid var(--accent);
+  border-radius: 0.4rem;
+  color: var(--text);
+  font-size: 0.9rem;
+  font-family: inherit;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-glow);
+}
+
+.settings-item-delete-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-ghost);
+  font-size: 0.8rem;
+  width: 1.8rem;
+  height: 1.8rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.1s, color 0.1s;
+}
+
+.settings-item-delete-btn:hover { background: rgba(239,68,68,0.1); color: var(--red); }
+
+.settings-item-empty {
+  text-align: center;
+  padding: 2rem 1.25rem;
+  color: var(--text-faint);
+  font-size: 0.9rem;
+}
+
 /* ---- Accent colour swatches ---- */
 
 .accent-swatches {

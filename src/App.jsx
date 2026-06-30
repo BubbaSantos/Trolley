@@ -1107,6 +1107,9 @@ export default function App() {
                 const histEntry = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
                 const isFav = histEntry?.is_favourite || false
                 const count = histEntry?.count || 0
+                const lastBought = histEntry?.last_used
+                  ? new Date(histEntry.last_used).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                  : null
                 return (
                   <>
                     {count > 0 && (
@@ -1114,6 +1117,12 @@ export default function App() {
                         <span className="detail-cat-label">Times bought</span>
                         <span className="detail-stat-value">{count}</span>
                         <button className="detail-stat-reset" onClick={() => resetBoughtCount(detailItem.name)}>Reset</button>
+                      </div>
+                    )}
+                    {lastBought && (
+                      <div className="detail-cat-row detail-stat-row">
+                        <span className="detail-cat-label">Last bought</span>
+                        <span className="detail-stat-value">{lastBought}</span>
                       </div>
                     )}
                     <button className="detail-cat-row" onClick={() => toggleFavourite(detailItem.name)}>

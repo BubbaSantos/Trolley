@@ -1663,7 +1663,26 @@ header h1 {
   color: var(--text-faint);
   font-size: 0.95rem;
   font-family: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.875rem;
 }
+
+.settings-item-add-new-btn {
+  padding: 0.65rem 1.25rem;
+  border-radius: 0.75rem;
+  background: var(--accent);
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-family: inherit;
+  border: none;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.settings-item-add-new-btn:hover { background: var(--accent-hover); }
 
 /* ---- Item edit sub-view ---- */
 

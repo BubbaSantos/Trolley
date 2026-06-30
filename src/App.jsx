@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.12.0'
+const VERSION = '2.12.1'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -1562,7 +1562,17 @@ export default function App() {
                       />
                     </div>
                     {allEntries.length === 0 ? (
-                      <p className="settings-item-empty">No matches</p>
+                      <div className="settings-item-empty">
+                        <p>No matches</p>
+                        {settingsItemSearch.trim() && (
+                          <button
+                            className="settings-item-add-new-btn"
+                            onClick={() => openItemEdit({ name: settingsItemSearch.trim(), category_id: 'other', isBuiltIn: false })}
+                          >
+                            + Add &ldquo;{settingsItemSearch.trim()}&rdquo;
+                          </button>
+                        )}
+                      </div>
                     ) : (
                       <ul className="settings-item-list">
                         {allEntries.map(entry => (

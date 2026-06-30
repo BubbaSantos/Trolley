@@ -465,36 +465,28 @@ header h1 {
   position: relative;
   border-radius: 0.6rem;
   overflow: hidden;
-  isolation: isolate;
-  transform: translateZ(0);
-  display: flex;
-  flex-direction: column;
-}
-
-.swipe-bg {
-  position: absolute;
-  inset: 0;
   background: var(--red);
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
 }
 
 .swipe-delete-btn {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
   background: transparent;
   color: white;
   font-size: 0.875rem;
   font-weight: 700;
   padding: 0 1.25rem;
-  height: 100%;
   border: none;
   cursor: pointer;
   letter-spacing: 0.02em;
+  display: flex;
+  align-items: center;
 }
 
 .swipe-row {
   position: relative;
-  z-index: 1;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -502,7 +494,6 @@ header h1 {
   background: var(--surface);
   transition: background 0.1s;
   border-radius: 0.6rem;
-  flex: 1;
 }
 
 .swipe-row.animate {

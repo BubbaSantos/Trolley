@@ -297,7 +297,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   )
 }
 
-function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sortableStyle, sortableAttributes, sortableListeners, isDragging }) {
+function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sortableStyle, sortableAttributes, sortableListeners, isDragging, dragActiveRef }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -307,11 +307,19 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
   function setTx(v) { txRef.current = v; _setTx(v) }
 
   useEffect(() => {
+    if (isDragging) { setAnimate(false); setTx(0) }
+  }, [isDragging])
+
+  useEffect(() => {
     const el = rowRef.current
     if (!el) return
     let startX = 0, startY = 0, dir = null, baseX = 0
-    function onStart(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false) }
+    function onStart(e) {
+      if (dragActiveRef?.current) return
+      startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false)
+    }
     function onMove(e) {
+      if (dragActiveRef?.current) return
       const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
       if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
       if (dir !== 'h') return
@@ -319,6 +327,7 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
       setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
     }
     function onEnd() {
+      if (dragActiveRef?.current) return
       if (dir !== 'h') return
       setAnimate(true)
       const t = txRef.current
@@ -427,7 +436,7 @@ function SortableCatItem({ id, cat }) {
   )
 }
 
-function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
+function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo, dragActiveRef }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: h.name })
   return (
     <SwipeHistoryItem
@@ -437,6 +446,7 @@ function SortableHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
       sortableAttributes={attributes}
       sortableListeners={listeners}
       isDragging={isDragging}
+      dragActiveRef={dragActiveRef}
     />
   )
 }
@@ -583,6 +593,7 @@ export default function App() {
   const strikeTimerRef = useRef({})
   const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
+  const historyDragActiveRef = useRef(false)
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
@@ -1442,12 +1453,17 @@ export default function App() {
               })}
             </ul>
           ) : (
-            <DndContext sensors={historySensors} collisionDetection={closestCenter} onDragEnd={handleHistoryDragEnd}>
+            <DndContext sensors={historySensors} collisionDetection={closestCenter}
+              onDragStart={() => { historyDragActiveRef.current = true }}
+              onDragEnd={(e) => { historyDragActiveRef.current = false; handleHistoryDragEnd(e) }}
+              onDragCancel={() => { historyDragActiveRef.current = false }}
+            >
               <SortableContext items={displayHistory.map(h => h.name)} strategy={verticalListSortingStrategy}>
                 <ul className="history-list">
                   {displayHistory.map(h => {
                     const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
                     return <SortableHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
+                      dragActiveRef={historyDragActiveRef}
                       onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
                   })}
                 </ul>

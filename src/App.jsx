@@ -633,12 +633,26 @@ export default function App() {
     setInputQty(qty)
     if (cleanName.length < 2) { setSuggestions(getHistorySuggestions()); return }
     const search = cleanName.toLowerCase()
-    const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search))
-    const customNames = new Set(customMatches.map(p => p.name.toLowerCase()))
+    const onList = new Set(items.map(i => parseItemName(i.name).name.toLowerCase()))
+    const historyMatches = history
+      .filter(h => h.name.toLowerCase().includes(search) && !onList.has(h.name.toLowerCase()))
+      .sort((a, b) => {
+        if (a.is_favourite && !b.is_favourite) return -1
+        if (!a.is_favourite && b.is_favourite) return 1
+        return (b.count || 1) - (a.count || 1)
+      })
+      .slice(0, 5)
+      .map(h => {
+        const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
+      })
+    const historyNames = new Set(historyMatches.map(h => h.name.toLowerCase()))
+    const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search) && !historyNames.has(p.name.toLowerCase()))
+    const customNames = new Set([...historyNames, ...customMatches.map(p => p.name.toLowerCase())])
     const builtInMatches = products.products
       .filter(p => !customNames.has(p.name.toLowerCase()))
       .filter(p => p.name.toLowerCase().includes(search) || p.keywords.some(k => k.includes(search)))
-    setSuggestions([...customMatches, ...builtInMatches].slice(0, 8))
+    setSuggestions([...historyMatches, ...customMatches, ...builtInMatches].slice(0, 8))
   }
 
   async function handleKeyDown(e) {

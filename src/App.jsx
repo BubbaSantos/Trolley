@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.13.4'
+const VERSION = '2.13.5'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -1082,11 +1082,11 @@ export default function App() {
   }
 
   async function resetAllCounts() {
-    setHistory(prev => prev.map(h => ({ ...h, count: 0 })))
+    setHistory(prev => prev.map(h => ({ ...h, count: 0, last_used: null })))
     closeSettings()
     if (navigator.onLine) {
       await Promise.all(
-        history.map(h => supabase.from('list_history').update({ count: 0 }).eq('list_code', listCode).eq('name', h.name))
+        history.map(h => supabase.from('list_history').update({ count: 0, last_used: null }).eq('list_code', listCode).eq('name', h.name))
       )
     }
   }
@@ -1102,7 +1102,7 @@ export default function App() {
     const { name: cleanName } = parseItemName(itemName)
     const existing = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
     if (!existing) return
-    const updated = { ...existing, count: 0 }
+    const updated = { ...existing, count: 0, last_used: null }
     setHistory(prev => prev.map(h => h.name.toLowerCase() === cleanName.toLowerCase() ? updated : h))
     if (navigator.onLine) await supabase.from('list_history').upsert(updated, { onConflict: 'list_code,name' })
   }

@@ -1511,9 +1511,6 @@ header h1 {
 
 .history-item.dragging {
   opacity: 0.5;
-  box-shadow: 0 8px 24px var(--shadow);
-  z-index: 10;
-  overflow: visible;
 }
 
 .history-item-row {

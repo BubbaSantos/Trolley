@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.11.0'
+const VERSION = '2.12.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -411,8 +411,9 @@ function SortableCatItem({ id, cat }) {
       ref={setNodeRef}
       className={`cat-order-item${isDragging ? ' dragging' : ''}`}
       style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      {...attributes} {...listeners}
     >
-      <span className="drag-handle" {...attributes} {...listeners}>⠿</span>
+      <span className="drag-handle">⠿</span>
       <span className="cat-order-icon">{cat.icon}</span>
       <span className="cat-order-name">{cat.name}</span>
     </li>
@@ -520,6 +521,7 @@ export default function App() {
   const [historySearch, setHistorySearch] = useState('')
   const [history, setHistory] = useState([])
   const [confirming, setConfirming] = useState(null)
+  const [confirmDeleteItem, setConfirmDeleteItem] = useState(false)
   const confirmTimerRef = useRef(null)
   const [settingsView, setSettingsView] = useState('main')
   const [settingsJoinCode, setSettingsJoinCode] = useState('')
@@ -620,22 +622,34 @@ export default function App() {
   function closeSettings() {
     setSettingsOpen(false); setSettingsView('main'); setSettingsJoinCode(''); setAddingCategory(false)
     setConfirming(null); clearTimeout(confirmTimerRef.current)
-    setSettingsItemSearch(''); setSettingsEditItem(null)
+    setSettingsItemSearch(''); setSettingsEditItem(null); setConfirmDeleteItem(false)
   }
 
   function settingsGoBack() {
-    if (settingsView === 'item-edit') { setSettingsView('items'); setSettingsEditItem(null); return }
+    if (settingsView === 'item-edit') { setSettingsView('items'); setSettingsEditItem(null); setConfirmDeleteItem(false); return }
     if (settingsView === 'items' || settingsView === 'categories') { setSettingsView('manage'); return }
     if (settingsView === 'manage') { setSettingsView('main'); return }
     setSettingsView('main'); setAddingCategory(false); setConfirming(null)
-    setSettingsItemSearch(''); setSettingsEditItem(null)
+    setSettingsItemSearch(''); setSettingsEditItem(null); setConfirmDeleteItem(false)
   }
 
   function openItemEdit(entry) {
     setSettingsEditItem(entry)
     setSettingsEditName(entry.name)
     setSettingsEditCatId(entry.category_id || 'other')
+    setConfirmDeleteItem(false)
     setSettingsView('item-edit')
+  }
+
+  async function deleteItemFromCatalogue() {
+    if (!settingsEditItem) return
+    if (settingsEditItem.isBuiltIn) hideProduct(settingsEditItem.name)
+    else removeCustomProduct(settingsEditItem.name)
+    const inHistory = history.find(h => h.name.toLowerCase() === settingsEditItem.name.toLowerCase())
+    if (inHistory) await deleteHistoryItem(settingsEditItem.name)
+    setConfirmDeleteItem(false)
+    setSettingsView('items')
+    setSettingsEditItem(null)
   }
 
   async function saveItemEdit() {
@@ -842,8 +856,9 @@ export default function App() {
       })
     if (histSugs.length >= 5) return histSugs
     const alreadyShown = new Set([...onList, ...histSugs.map(s => s.name.toLowerCase())])
+    const hidden = getHiddenProducts()
     const fallback = COMMON_ITEMS
-      .filter(item => !alreadyShown.has(item.name.toLowerCase()) && !isDismissed(item.name))
+      .filter(item => !alreadyShown.has(item.name.toLowerCase()) && !isDismissed(item.name) && !hidden.includes(item.name.toLowerCase()))
       .slice(0, 5 - histSugs.length)
       .map(item => ({ name: item.name, category: item.category, fromHistory: true, count: 0 }))
     return [...histSugs, ...fallback]
@@ -886,8 +901,10 @@ export default function App() {
     const historyNames = new Set(historyMatches.map(h => h.name.toLowerCase()))
     const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search) && !historyNames.has(p.name.toLowerCase()))
     const customNames = new Set([...historyNames, ...customMatches.map(p => p.name.toLowerCase())])
+    const hidden = getHiddenProducts()
     const builtInMatches = products.products
       .filter(p => !customNames.has(p.name.toLowerCase()))
+      .filter(p => !hidden.includes(p.name.toLowerCase()))
       .filter(p => p.name.toLowerCase().includes(search) || p.keywords.some(k => k.includes(search)))
     setSuggestions([...historyMatches, ...customMatches, ...builtInMatches].slice(0, 8))
   }
@@ -1584,18 +1601,20 @@ export default function App() {
                       />
                     </div>
                     <p className="settings-item-edit-label" style={{ padding: '0.75rem 1.25rem 0.5rem' }}>Category</p>
-                    <div className="settings-item-cat-list">
-                      {allCategories.map(cat => (
-                        <button
-                          key={cat.id}
-                          className={`settings-item-cat-option${settingsEditCatId === cat.id ? ' active' : ''}`}
-                          onClick={() => setSettingsEditCatId(cat.id)}
-                        >
-                          <span>{cat.icon}</span>
-                          <span className="settings-item-cat-option-name">{cat.name}</span>
-                          {settingsEditCatId === cat.id && <span className="settings-item-cat-check">✓</span>}
-                        </button>
-                      ))}
+                    <div className="settings-item-cat-list-wrap">
+                      <div className="settings-item-cat-list">
+                        {allCategories.map(cat => (
+                          <button
+                            key={cat.id}
+                            className={`settings-item-cat-option${settingsEditCatId === cat.id ? ' active' : ''}`}
+                            onClick={() => setSettingsEditCatId(cat.id)}
+                          >
+                            <span>{cat.icon}</span>
+                            <span className="settings-item-cat-option-name">{cat.name}</span>
+                            {settingsEditCatId === cat.id && <span className="settings-item-cat-check">✓</span>}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                     <div className="item-edit-meta">
                       {onList && (
@@ -1626,7 +1645,18 @@ export default function App() {
                       <button className="settings-item-save-btn" onClick={saveItemEdit} disabled={!settingsEditName.trim()}>
                         Save changes
                       </button>
-                      <button className="item-edit-cancel-btn" onClick={() => { setSettingsView('items'); setSettingsEditItem(null) }}>
+                      {confirmDeleteItem ? (
+                        <div className="confirm-row" style={{ margin: 0 }}>
+                          <span className="confirm-label">Delete this item?</span>
+                          <button className="confirm-cancel-btn" onClick={() => setConfirmDeleteItem(false)}>No</button>
+                          <button className="confirm-ok-btn" onClick={deleteItemFromCatalogue}>Yes</button>
+                        </div>
+                      ) : (
+                        <button className="item-edit-delete-btn" onClick={() => setConfirmDeleteItem(true)}>
+                          Delete item
+                        </button>
+                      )}
+                      <button className="item-edit-cancel-btn" onClick={() => { setSettingsView('items'); setSettingsEditItem(null); setConfirmDeleteItem(false) }}>
                         Cancel
                       </button>
                       {histEntry && (

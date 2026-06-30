@@ -1056,7 +1056,12 @@ header h1 {
   padding: 0.7rem 1.25rem;
   border-bottom: 1px solid var(--border-subtle);
   transition: background 0.1s;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
+
+.cat-order-item:active { cursor: grabbing; }
 
 .cat-order-item:last-child { border-bottom: none; }
 .cat-order-item:hover { background: var(--surface-hover); }
@@ -1695,9 +1700,28 @@ header h1 {
 
 .settings-item-edit-field:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
-.settings-item-cat-list {
+.settings-item-cat-list-wrap {
+  position: relative;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 0.5rem;
+}
+
+.settings-item-cat-list-wrap::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2.5rem;
+  background: linear-gradient(to bottom, transparent, var(--surface));
+  pointer-events: none;
+}
+
+.settings-item-cat-list {
+  max-height: 212px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 .settings-item-cat-option {
@@ -1841,6 +1865,24 @@ header h1 {
   flex-direction: column;
   gap: 0.5rem;
 }
+
+.item-edit-delete-btn {
+  display: block;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--red);
+  color: var(--red);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.item-edit-delete-btn:hover { background: rgba(239,68,68,0.08); }
 
 .item-edit-remove-history-btn {
   display: block;

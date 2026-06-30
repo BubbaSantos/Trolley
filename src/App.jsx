@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.0'
+const VERSION = '2.14.1'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -833,6 +833,10 @@ export default function App() {
           setHistory(prev => prev.filter(h => h.name !== payload.old.name))
         }
       })
+      .on('broadcast', { event: 'change' }, async () => {
+        const { data } = await supabase.from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true })
+        if (data) { setItems(data); setCachedItems(code, data) }
+      })
       .subscribe((status) => {
         if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && listCodeRef.current) {
           clearTimeout(reconnectTimerRef.current)
@@ -841,6 +845,10 @@ export default function App() {
           }, 4000)
         }
       })
+  }
+
+  function notifyChange() {
+    channelRef.current?.send({ type: 'broadcast', event: 'change', payload: {} })
   }
 
   async function joinList(e) {
@@ -942,7 +950,7 @@ export default function App() {
     setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
     locallyAddedIdsRef.current.add(newItem.id)
     markEntering(newItem.id)
-    if (navigator.onLine) await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
+    if (navigator.onLine) { await supabase.from('list_items').upsert(newItem, { onConflict: 'id' }); notifyChange() }
     else enqueue({ type: 'INSERT', data: newItem })
   }
 
@@ -1031,12 +1039,12 @@ export default function App() {
         setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
         const now = Date.now()
         setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now } : i); setCachedItems(listCode, next); return next })
-        if (navigator.onLine) await supabase.from('list_items').update({ checked: true }).eq('id', id)
+        if (navigator.onLine) { await supabase.from('list_items').update({ checked: true }).eq('id', id); notifyChange() }
         else enqueue({ type: 'UPDATE', id, data: { checked: true } })
       }, 1300)
     } else {
       setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) await supabase.from('list_items').update({ checked: false }).eq('id', id)
+      if (navigator.onLine) { await supabase.from('list_items').update({ checked: false }).eq('id', id); notifyChange() }
       else enqueue({ type: 'UPDATE', id, data: { checked: false } })
     }
   }
@@ -1046,7 +1054,7 @@ export default function App() {
     const item = items.find(i => i.id === id)
     if (item) recordHistory(item)
     setItems(prev => { const next = prev.filter(i => i.id !== id); setCachedItems(listCode, next); return next })
-    if (navigator.onLine) await supabase.from('list_items').delete().eq('id', id)
+    if (navigator.onLine) { await supabase.from('list_items').delete().eq('id', id); notifyChange() }
     else enqueue({ type: 'DELETE', id })
   }
 
@@ -1060,7 +1068,7 @@ export default function App() {
       setExitingIds(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s })
       setItems(prev => { const next = prev.filter(i => !ids.includes(i.id)); setCachedItems(listCode, next); return next })
     }, 260)
-    if (navigator.onLine) await supabase.from('list_items').delete().in('id', ids)
+    if (navigator.onLine) { await supabase.from('list_items').delete().in('id', ids); notifyChange() }
     else ids.forEach(id => enqueue({ type: 'DELETE', id }))
   }
 
@@ -1071,7 +1079,7 @@ export default function App() {
     if (item) upsertCustomProduct(item.name, newCatId)
     setItems(prev => { const next = prev.map(i => i.id === itemId ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
     setPickerItem(null)
-    if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', itemId)
+    if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', itemId); notifyChange() }
     else enqueue({ type: 'UPDATE', id: itemId, data: update })
   }
 
@@ -1090,7 +1098,7 @@ export default function App() {
       setItems([]); setCachedItems(listCode, [])
     }, 300)
     closeSettings()
-    if (navigator.onLine) await supabase.from('list_items').delete().eq('list_code', listCode)
+    if (navigator.onLine) { await supabase.from('list_items').delete().eq('list_code', listCode); notifyChange() }
     else ids.forEach(id => enqueue({ type: 'DELETE', id }))
   }
 
@@ -1158,7 +1166,7 @@ export default function App() {
     if (detailItem.id) {
       const update = { name: newName }
       setItems(prev => { const next = prev.map(i => i.id === detailItem.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', detailItem.id)
+      if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', detailItem.id); notifyChange() }
       else enqueue({ type: 'UPDATE', id: detailItem.id, data: update })
     }
 
@@ -1192,7 +1200,7 @@ export default function App() {
     const itemForPicker = newName ? { ...detailItem, name: newName } : detailItem
     if (newName && newName !== detailItem.name) {
       setItems(prev => { const next = prev.map(i => i.id === detailItem.id ? { ...i, name: newName } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) supabase.from('list_items').update({ name: newName }).eq('id', detailItem.id).then(() => {})
+      if (navigator.onLine) supabase.from('list_items').update({ name: newName }).eq('id', detailItem.id).then(() => notifyChange())
       else enqueue({ type: 'UPDATE', id: detailItem.id, data: { name: newName } })
     }
     setDetailItem(null)

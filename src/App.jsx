@@ -419,12 +419,13 @@ function SortableCatItem({ id, cat }) {
   )
 }
 
-function BottomSheet({ onClose, children }) {
+function BottomSheet({ onClose, children, noSwipe }) {
   const sheetRef = useRef(null)
   const onCloseRef = useRef(onClose)
   useEffect(() => { onCloseRef.current = onClose }, [onClose])
 
   useEffect(() => {
+    if (noSwipe) return
     const el = sheetRef.current
     if (!el) return
     let startY = 0, startTime = 0, currentY = 0, engaged = false
@@ -464,9 +465,9 @@ function BottomSheet({ onClose, children }) {
       el.removeEventListener('touchmove', onMove)
       el.removeEventListener('touchend', onEnd)
     }
-  }, [])
+  }, [noSwipe])
 
-  return <div ref={sheetRef} className="sheet" onClick={e => e.stopPropagation()}>{children}</div>
+  return <div ref={sheetRef} className={`sheet${noSwipe ? ' full-screen' : ''}`} onClick={e => e.stopPropagation()}>{children}</div>
 }
 
 const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
@@ -624,6 +625,8 @@ export default function App() {
 
   function settingsGoBack() {
     if (settingsView === 'item-edit') { setSettingsView('items'); setSettingsEditItem(null); return }
+    if (settingsView === 'items' || settingsView === 'categories') { setSettingsView('manage'); return }
+    if (settingsView === 'manage') { setSettingsView('main'); return }
     setSettingsView('main'); setAddingCategory(false); setConfirming(null)
     setSettingsItemSearch(''); setSettingsEditItem(null)
   }
@@ -1457,10 +1460,12 @@ export default function App() {
       )}
 
       {/* Settings */}
-      {settingsOpen && (
-        <div className="overlay" onClick={closeSettings}>
-          <BottomSheet onClose={closeSettings}>
-            <div className="sheet-handle" />
+      {settingsOpen && (() => {
+        const fullScreen = ['items', 'item-edit', 'categories'].includes(settingsView)
+        return (
+        <div className="overlay" onClick={fullScreen ? undefined : closeSettings}>
+          <BottomSheet onClose={closeSettings} noSwipe={fullScreen}>
+            {!fullScreen && <div className="sheet-handle" />}
             <div className="sheet-header">
               <div
                 style={{ display: 'flex', alignItems: 'center', cursor: settingsView !== 'main' ? 'pointer' : 'default' }}
@@ -1470,7 +1475,7 @@ export default function App() {
                   <span className="sheet-back">‹</span>
                 )}
                 <p className="sheet-title">
-                  {settingsView === 'main' ? 'Settings' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : settingsView === 'items' ? 'Manage Items' : settingsView === 'item-edit' ? 'Edit Item' : 'Manage Categories'}
+                  {settingsView === 'main' ? 'Settings' : settingsView === 'manage' ? 'Manage' : settingsView === 'items' ? 'Manage Items' : settingsView === 'item-edit' ? 'Edit Item' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : 'Manage Categories'}
                 </p>
               </div>
               <button onClick={closeSettings} className="sheet-close">✕</button>
@@ -1492,17 +1497,10 @@ export default function App() {
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
-                  <button className="settings-nav-item" onClick={() => setSettingsView('items')}>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('manage')}>
                     <div className="settings-nav-left">
-                      <span className="settings-nav-title">Manage Items</span>
-                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Edit, add or remove</span>
-                    </div>
-                    <span className="settings-nav-arrow">›</span>
-                  </button>
-                  <button className="settings-nav-item" onClick={() => setSettingsView('categories')}>
-                    <div className="settings-nav-left">
-                      <span className="settings-nav-title">Manage Categories</span>
-                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Drag to reorder</span>
+                      <span className="settings-nav-title">Manage</span>
+                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Items &amp; categories</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -1510,6 +1508,24 @@ export default function App() {
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Reset</span>
                       <span className="settings-nav-sub">Clear list, history or counts</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
+                </>
+              )}
+              {settingsView === 'manage' && (
+                <>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('items')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Manage Items</span>
+                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Edit product catalogue</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('categories')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Manage Categories</span>
+                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Drag to reorder</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -1548,38 +1564,81 @@ export default function App() {
                   </>
                 )
               })()}
-              {settingsView === 'item-edit' && settingsEditItem && (
-                <>
-                  <div className="settings-item-edit-form">
-                    <label className="settings-item-edit-label">Name</label>
-                    <input
-                      type="text" value={settingsEditName}
-                      onChange={e => setSettingsEditName(e.target.value)}
-                      className="settings-item-edit-field" autoComplete="off"
-                      onKeyDown={e => { if (e.key === 'Enter') saveItemEdit() }}
-                    />
-                  </div>
-                  <label className="settings-item-edit-label" style={{ padding: '0 1.25rem 0.5rem' }}>Category</label>
-                  <div className="settings-item-cat-list">
-                    {allCategories.map(cat => (
-                      <button
-                        key={cat.id}
-                        className={`settings-item-cat-option${settingsEditCatId === cat.id ? ' active' : ''}`}
-                        onClick={() => setSettingsEditCatId(cat.id)}
-                      >
-                        <span>{cat.icon}</span>
-                        <span className="settings-item-cat-option-name">{cat.name}</span>
-                        {settingsEditCatId === cat.id && <span className="settings-item-cat-check">✓</span>}
+              {settingsView === 'item-edit' && settingsEditItem && (() => {
+                const histEntry = history.find(h => h.name.toLowerCase() === settingsEditItem.name.toLowerCase())
+                const isFav = histEntry?.is_favourite || false
+                const count = histEntry?.count || 0
+                const lastBought = histEntry?.last_used
+                  ? new Date(histEntry.last_used).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                  : null
+                const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === settingsEditItem.name.toLowerCase())
+                return (
+                  <>
+                    <div className="settings-item-edit-form">
+                      <label className="settings-item-edit-label">Name</label>
+                      <input
+                        type="text" value={settingsEditName}
+                        onChange={e => setSettingsEditName(e.target.value)}
+                        className="settings-item-edit-field" autoComplete="off"
+                        onKeyDown={e => { if (e.key === 'Enter') saveItemEdit() }}
+                      />
+                    </div>
+                    <p className="settings-item-edit-label" style={{ padding: '0.75rem 1.25rem 0.5rem' }}>Category</p>
+                    <div className="settings-item-cat-list">
+                      {allCategories.map(cat => (
+                        <button
+                          key={cat.id}
+                          className={`settings-item-cat-option${settingsEditCatId === cat.id ? ' active' : ''}`}
+                          onClick={() => setSettingsEditCatId(cat.id)}
+                        >
+                          <span>{cat.icon}</span>
+                          <span className="settings-item-cat-option-name">{cat.name}</span>
+                          {settingsEditCatId === cat.id && <span className="settings-item-cat-check">✓</span>}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="item-edit-meta">
+                      {onList && (
+                        <div className="item-edit-meta-row item-edit-meta-badge">
+                          <span className="item-edit-meta-label">Status</span>
+                          <span className="item-edit-on-list-badge">● On list</span>
+                        </div>
+                      )}
+                      <button className="item-edit-meta-row item-edit-meta-btn" onClick={() => toggleFavourite(settingsEditItem.name)}>
+                        <span className="item-edit-meta-label">Favourite</span>
+                        <span className={`detail-fav-toggle${isFav ? ' active' : ''}`}>{isFav ? '★' : '☆'}</span>
                       </button>
-                    ))}
-                  </div>
-                  <div style={{ padding: '0.75rem 1.25rem 1.5rem' }}>
-                    <button className="settings-item-save-btn" onClick={saveItemEdit} disabled={!settingsEditName.trim()}>
-                      Save
-                    </button>
-                  </div>
-                </>
-              )}
+                      {count > 0 && (
+                        <div className="item-edit-meta-row">
+                          <span className="item-edit-meta-label">Times bought</span>
+                          <span className="item-edit-meta-value">{count}</span>
+                          <button className="item-edit-reset-count" onClick={() => resetBoughtCount(settingsEditItem.name)}>Reset</button>
+                        </div>
+                      )}
+                      {lastBought && (
+                        <div className="item-edit-meta-row">
+                          <span className="item-edit-meta-label">Last bought</span>
+                          <span className="item-edit-meta-value">{lastBought}</span>
+                        </div>
+                      )}
+                    </div>
+                    <div className="item-edit-actions">
+                      <button className="settings-item-save-btn" onClick={saveItemEdit} disabled={!settingsEditName.trim()}>
+                        Save changes
+                      </button>
+                      {histEntry && (
+                        <button className="item-edit-remove-history-btn" onClick={async () => {
+                          await deleteHistoryItem(settingsEditItem.name)
+                          setSettingsView('items')
+                          setSettingsEditItem(null)
+                        }}>
+                          Remove from history
+                        </button>
+                      )}
+                    </div>
+                  </>
+                )
+              })()}
               {settingsView === 'appearance' && (
                 <>
                   <div className="settings-row">
@@ -1708,7 +1767,8 @@ export default function App() {
             </div>
           </BottomSheet>
         </div>
-      )}
+        )
+      })()}
 
       <nav className="tab-bar">
         <button className={`tab-btn${tab === 'list' ? ' active' : ''}`} onClick={() => setTab('list')}>

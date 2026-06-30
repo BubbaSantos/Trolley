@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.12.1'
+const VERSION = '2.12.2'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -1012,7 +1012,7 @@ export default function App() {
         setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now } : i); setCachedItems(listCode, next); return next })
         if (navigator.onLine) await supabase.from('list_items').update({ checked: true }).eq('id', id)
         else enqueue({ type: 'UPDATE', id, data: { checked: true } })
-      }, 2000)
+      }, 1300)
     } else {
       setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null } : i); setCachedItems(listCode, next); return next })
       if (navigator.onLine) await supabase.from('list_items').update({ checked: false }).eq('id', id)

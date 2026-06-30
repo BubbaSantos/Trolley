@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.12.3'
+const VERSION = '2.13.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -299,7 +299,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
   )
 }
 
-function SwipeHistoryItem({ h, onAdd, onDelete, onList }) {
+function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -340,11 +340,13 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList }) {
         <div className="swipe-bg">
           <button className="swipe-delete-btn" onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(h.name), 260) }}>Delete</button>
         </div>
-        <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}>
+        <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}
+          onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0); return }; onInfo(h) }}
+        >
           <span className="history-name">{h.name}</span>
           {h.is_favourite && <span className="history-fav">★</span>}
           {onList ? <span className="history-on-list-badge">On list</span>
-            : <button className="history-add-btn" onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
+            : <button className="history-add-btn" onClick={e => { e.stopPropagation(); if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
         </div>
       </div>
     </li>
@@ -1134,11 +1136,13 @@ export default function App() {
     if (!detailItem) return
     const newName = buildDetailName()
     if (!newName) return
-    const update = { name: newName }
-    setItems(prev => { const next = prev.map(i => i.id === detailItem.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
     setDetailItem(null)
-    if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', detailItem.id)
-    else enqueue({ type: 'UPDATE', id: detailItem.id, data: update })
+    if (detailItem.id) {
+      const update = { name: newName }
+      setItems(prev => { const next = prev.map(i => i.id === detailItem.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
+      if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', detailItem.id)
+      else enqueue({ type: 'UPDATE', id: detailItem.id, data: update })
+    }
 
     const { name: oldBase } = parseItemName(detailItem.name)
     const { name: newBase } = parseItemName(newName)
@@ -1348,7 +1352,8 @@ export default function App() {
             <ul className="history-list">
               {filteredHistory.map(h => {
                 const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
-                return <SwipeHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList} />
+                return <SwipeHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
+                  onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
               })}
             </ul>
           )}
@@ -1357,45 +1362,57 @@ export default function App() {
 
       {/* Item detail sheet */}
       {detailItem && (
-        <div className="overlay" onClick={saveDetail}>
-          <BottomSheet onClose={saveDetail}>
+        <div className="overlay" onClick={detailItem._fromHistory ? () => setDetailItem(null) : saveDetail}>
+          <BottomSheet onClose={detailItem._fromHistory ? () => setDetailItem(null) : saveDetail}>
             <div className="sheet-handle" />
             <div className="sheet-header">
               <p className="sheet-title">{detailItem.name}</p>
-              <button className="sheet-done-btn" onClick={saveDetail}>Done</button>
+              <button className="sheet-done-btn" onClick={detailItem._fromHistory ? () => setDetailItem(null) : saveDetail}>Done</button>
             </div>
             <div className="sheet-body">
-              <div className="detail-card">
-                <div className="detail-field">
-                  <input
-                    type="text" value={detailName} onChange={e => setDetailName(e.target.value)}
-                    className="detail-name-input" placeholder="Item name"
-                    autoComplete="off"
-                  />
+              {!detailItem._fromHistory && (
+                <div className="detail-card">
+                  <div className="detail-field">
+                    <input
+                      type="text" value={detailName} onChange={e => setDetailName(e.target.value)}
+                      className="detail-name-input" placeholder="Item name"
+                      autoComplete="off"
+                    />
+                  </div>
+                  <div className="detail-divider" />
+                  <div className="detail-field detail-qty-row">
+                    <span className="detail-field-label">How many?</span>
+                    {detailQtyIsText ? (
+                      <input type="text" value={detailQtyText} onChange={e => setDetailQtyText(e.target.value)}
+                        className="detail-qty-text" />
+                    ) : (
+                      <div className="qty-stepper">
+                        <button className="qty-btn" onClick={() => setDetailQty(q => Math.max(1, q - 1))}>−</button>
+                        <span className="qty-value">{detailQty}</span>
+                        <button className="qty-btn" onClick={() => setDetailQty(q => q + 1)}>+</button>
+                      </div>
+                    )}
+                  </div>
                 </div>
-                <div className="detail-divider" />
-                <div className="detail-field detail-qty-row">
-                  <span className="detail-field-label">How many?</span>
-                  {detailQtyIsText ? (
-                    <input type="text" value={detailQtyText} onChange={e => setDetailQtyText(e.target.value)}
-                      className="detail-qty-text" />
-                  ) : (
-                    <div className="qty-stepper">
-                      <button className="qty-btn" onClick={() => setDetailQty(q => Math.max(1, q - 1))}>−</button>
-                      <span className="qty-value">{detailQty}</span>
-                      <button className="qty-btn" onClick={() => setDetailQty(q => q + 1)}>+</button>
-                    </div>
-                  )}
+              )}
+              {detailItem._fromHistory ? (
+                <div className="detail-cat-row detail-stat-row" style={{ cursor: 'default' }}>
+                  <span className="detail-cat-label">Category</span>
+                  <span className="detail-cat-value">
+                    {getCat(detailItem.category_id)?.icon ?? '🛍️'}
+                    {getCat(detailItem.category_id)?.name ?? 'Other'}
+                  </span>
                 </div>
-              </div>
-              <button className="detail-cat-row" onClick={openDetailCategoryPicker}>
-                <span className="detail-cat-label">Category</span>
-                <span className="detail-cat-value">
-                  {getCat(detailItem.category_id)?.icon ?? '🛍️'}
-                  {getCat(detailItem.category_id)?.name ?? 'Other'}
-                </span>
-                <span className="detail-cat-arrow">›</span>
-              </button>
+              ) : (
+                <button className="detail-cat-row" onClick={openDetailCategoryPicker}>
+                  <span className="detail-cat-label">Category</span>
+                  <span className="detail-cat-value">
+                    {getCat(detailItem.category_id)?.icon ?? '🛍️'}
+                    {getCat(detailItem.category_id)?.name ?? 'Other'}
+                  </span>
+                  <span className="detail-cat-arrow">›</span>
+                </button>
+              )}
               {(() => {
                 const { name: cleanName } = parseItemName(detailItem.name)
                 const histEntry = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())

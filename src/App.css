@@ -467,6 +467,8 @@ header h1 {
   overflow: hidden;
   isolation: isolate;
   transform: translateZ(0);
+  display: flex;
+  flex-direction: column;
 }
 
 .swipe-bg {
@@ -499,6 +501,8 @@ header h1 {
   padding: 0.75rem 0.875rem;
   background: var(--surface);
   transition: background 0.1s;
+  border-radius: 0.6rem;
+  flex: 1;
 }
 
 .swipe-row.animate {

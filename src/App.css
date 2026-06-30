@@ -469,7 +469,8 @@ header h1 {
 
 .swipe-delete-btn {
   position: absolute;
-  inset: 0;
+  inset: 2px;
+  border-radius: calc(0.6rem - 2px);
   background: var(--red);
   color: white;
   font-size: 0.875rem;

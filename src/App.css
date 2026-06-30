@@ -675,9 +675,13 @@ header h1 {
 }
 
 .sheet.full-screen {
-  max-height: 100dvh;
-  height: 100dvh;
+  height: 100%;
+  max-height: 100%;
   border-radius: 0;
+}
+
+.sheet.full-screen .sheet-header {
+  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
 }
 
 @keyframes slide-up {
@@ -739,6 +743,9 @@ header h1 {
   overflow-y: auto;
   padding: 0.5rem 0 1.5rem;
   -webkit-overflow-scrolling: touch;
+  flex: 1;
+  min-height: 0;
+  overscroll-behavior-y: contain;
 }
 
 /* ---- Category Picker ---- */
@@ -778,18 +785,18 @@ header h1 {
   font-size: 1rem;
 }
 
-/* ---- Settings ---- */
+/* ---- Settings (shared typography baseline) ---- */
 
 .settings-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0.8rem 1.25rem;
+  padding: 0.875rem 1.25rem;
   border-bottom: 1px solid var(--border-subtle);
 }
 
 .settings-row-label {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
   color: var(--text);
 }
@@ -799,9 +806,10 @@ header h1 {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 0.5rem;
-  padding: 0.4rem 0.75rem;
-  font-size: 0.85rem;
+  padding: 0.4rem 0.875rem;
+  font-size: 0.9rem;
   font-weight: 500;
+  font-family: inherit;
   transition: background 0.15s;
   -webkit-tap-highlight-color: transparent;
 }
@@ -822,7 +830,7 @@ header h1 {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 1rem 1.25rem;
+  padding: 0.875rem 1.25rem;
   border-bottom: 1px solid var(--border-subtle);
   cursor: pointer;
   transition: background 0.1s;
@@ -849,10 +857,9 @@ header h1 {
 }
 
 .settings-nav-sub {
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: var(--text-muted);
-  font-family: 'Courier New', monospace;
-  letter-spacing: 0.1em;
+  font-family: inherit;
 }
 
 .settings-nav-arrow {
@@ -890,9 +897,9 @@ header h1 {
   display: block;
   width: calc(100% - 2.5rem);
   margin: 0 1.25rem 0.6rem;
-  padding: 0.8rem 1rem;
+  padding: 0.875rem 1rem;
   border-radius: 0.75rem;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   text-align: center;
   transition: background 0.15s, opacity 0.15s;
@@ -949,11 +956,12 @@ header h1 {
 
 .settings-divider-label {
   padding: 1rem 1.25rem 0.4rem;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
+  font-family: inherit;
 }
 
 .settings-join-row {
@@ -990,11 +998,11 @@ header h1 {
 }
 
 .settings-join-btn {
-  padding: 0.7rem 1rem;
+  padding: 0.75rem 1rem;
   background: var(--accent);
   color: white;
   border-radius: 0.6rem;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   transition: background 0.15s;
   font-family: inherit;
@@ -1006,9 +1014,9 @@ header h1 {
   display: block;
   width: calc(100% - 2.5rem);
   margin: 0 1.25rem 1rem;
-  padding: 0.8rem 1rem;
+  padding: 0.875rem 1rem;
   border-radius: 0.75rem;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   text-align: center;
   background: var(--surface-hover);
@@ -1021,18 +1029,20 @@ header h1 {
 .settings-create-btn:hover { background: var(--border); }
 
 .settings-section-label {
-  font-size: 0.75rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
+  font-family: inherit;
   padding: 1rem 1.25rem 0.25rem;
 }
 
 .settings-hint {
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--text-ghost);
   padding: 0 1.25rem 0.75rem;
+  font-family: inherit;
 }
 
 .cat-order-list {
@@ -1616,16 +1626,18 @@ header h1 {
 
 .settings-item-name-text {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
   color: var(--text);
+  font-family: inherit;
 }
 
 .settings-item-cat-label {
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   color: var(--text-faint);
   white-space: nowrap;
   flex-shrink: 0;
+  font-family: inherit;
 }
 
 .settings-item-chevron {
@@ -1644,7 +1656,8 @@ header h1 {
   text-align: center;
   padding: 2rem 1.25rem;
   color: var(--text-faint);
-  font-size: 0.9rem;
+  font-size: 0.95rem;
+  font-family: inherit;
 }
 
 /* ---- Item edit sub-view ---- */
@@ -1657,11 +1670,12 @@ header h1 {
 
 .settings-item-edit-label {
   display: block;
-  font-size: 0.7rem;
-  font-weight: 700;
+  font-size: 0.72rem;
+  font-weight: 600;
   color: var(--text-faint);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
+  font-family: inherit;
   margin-bottom: 0.4rem;
 }
 
@@ -1682,8 +1696,6 @@ header h1 {
 .settings-item-edit-field:focus { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-glow); }
 
 .settings-item-cat-list {
-  max-height: 280px;
-  overflow-y: auto;
   border-bottom: 1px solid var(--border-subtle);
   margin-bottom: 0.5rem;
 }
@@ -1693,7 +1705,7 @@ header h1 {
   align-items: center;
   gap: 0.75rem;
   width: 100%;
-  padding: 0.65rem 1.25rem;
+  padding: 0.75rem 1.25rem;
   background: transparent;
   border: none;
   color: var(--text-2);
@@ -1702,8 +1714,10 @@ header h1 {
   transition: background 0.1s;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
+  border-bottom: 1px solid var(--border-subtle);
 }
 
+.settings-item-cat-option:last-child { border-bottom: none; }
 .settings-item-cat-option:hover { background: var(--surface-hover); }
 
 .settings-item-cat-option.active {
@@ -1713,7 +1727,7 @@ header h1 {
 
 .settings-item-cat-option-name {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
 }
 
@@ -1725,13 +1739,13 @@ header h1 {
 .settings-item-save-btn {
   display: block;
   width: 100%;
-  padding: 0.85rem 1rem;
+  padding: 0.875rem 1rem;
   background: var(--accent);
   color: white;
   border: none;
   border-radius: 0.75rem;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: 600;
   font-family: inherit;
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
@@ -1740,6 +1754,23 @@ header h1 {
 
 .settings-item-save-btn:disabled { opacity: 0.35; cursor: default; }
 .settings-item-save-btn:not(:disabled):hover { background: var(--accent-hover); }
+
+.item-edit-cancel-btn {
+  display: block;
+  width: 100%;
+  padding: 0.875rem 1rem;
+  border-radius: 0.75rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  text-align: center;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.item-edit-cancel-btn:hover { background: var(--surface-hover); }
 
 /* ---- Item edit meta section ---- */
 
@@ -1767,25 +1798,27 @@ header h1 {
 
 .item-edit-meta-label {
   flex: 1;
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 500;
   color: var(--text);
+  font-family: inherit;
 }
 
 .item-edit-meta-value {
-  font-size: 0.9rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-muted);
   margin-right: 0.5rem;
+  font-family: inherit;
 }
 
 .item-edit-reset-count {
-  padding: 0.2rem 0.6rem;
+  padding: 0.25rem 0.65rem;
   border-radius: 0.4rem;
   border: 1px solid var(--border);
   background: var(--surface-hover);
   color: var(--text-muted);
-  font-size: 0.75rem;
+  font-size: 0.8rem;
   font-weight: 600;
   font-family: inherit;
   cursor: pointer;

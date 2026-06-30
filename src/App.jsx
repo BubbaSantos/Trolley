@@ -1486,7 +1486,7 @@ export default function App() {
                   <button className="settings-nav-item" onClick={() => setSettingsView('appearance')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Appearance</span>
-                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>{theme === 'dark' ? 'Dark' : 'Light'} · {ACCENTS.find(a => a.id === accentId)?.label ?? 'Indigo'}</span>
+                      <span className="settings-nav-sub">{theme === 'dark' ? 'Dark' : 'Light'} · {ACCENTS.find(a => a.id === accentId)?.label ?? 'Indigo'}</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -1500,7 +1500,7 @@ export default function App() {
                   <button className="settings-nav-item" onClick={() => setSettingsView('manage')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Manage</span>
-                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Items &amp; categories</span>
+                      <span className="settings-nav-sub">Items &amp; categories</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -1518,14 +1518,14 @@ export default function App() {
                   <button className="settings-nav-item" onClick={() => setSettingsView('items')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Manage Items</span>
-                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Edit product catalogue</span>
+                      <span className="settings-nav-sub">Edit product catalogue</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
                   <button className="settings-nav-item" onClick={() => setSettingsView('categories')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Manage Categories</span>
-                      <span className="settings-nav-sub" style={{ fontFamily: 'inherit', letterSpacing: 0 }}>Drag to reorder</span>
+                      <span className="settings-nav-sub">Drag to reorder</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -1625,6 +1625,9 @@ export default function App() {
                     <div className="item-edit-actions">
                       <button className="settings-item-save-btn" onClick={saveItemEdit} disabled={!settingsEditName.trim()}>
                         Save changes
+                      </button>
+                      <button className="item-edit-cancel-btn" onClick={() => { setSettingsView('items'); setSettingsEditItem(null) }}>
+                        Cancel
                       </button>
                       {histEntry && (
                         <button className="item-edit-remove-history-btn" onClick={async () => {

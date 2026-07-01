@@ -1980,6 +1980,178 @@ header h1 {
 
 .item-edit-remove-history-btn:hover { background: rgba(239,68,68,0.08); color: var(--red); border-color: var(--red); }
 
+/* ---- Item attribution ---- */
+
+.item-name-group {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.item-attribution {
+  font-size: 0.68rem;
+  color: var(--text-ghost);
+  opacity: 0.7;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-top: 0.1rem;
+}
+
+/* ---- Online presence ---- */
+
+.online-users {
+  display: flex;
+  align-items: center;
+}
+
+.online-avatar {
+  width: 1.6rem;
+  height: 1.6rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: white;
+  border: 2px solid var(--bg);
+  margin-left: -0.4rem;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.online-avatar:first-child { margin-left: 0; }
+
+.online-more-avatar {
+  font-size: 0.6rem;
+  font-weight: 700;
+  border-color: var(--border);
+}
+
+/* ---- Name prompt ---- */
+
+.name-prompt-overlay {
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.name-prompt {
+  background: var(--surface);
+  border-radius: 1.5rem;
+  padding: 2rem 1.5rem 1.5rem;
+  width: 100%;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  align-items: center;
+  text-align: center;
+  animation: slide-up 0.25s ease;
+}
+
+.name-prompt-emoji {
+  font-size: 2.5rem;
+  line-height: 1;
+  margin-bottom: 0.25rem;
+}
+
+.name-prompt-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+}
+
+.name-prompt-sub {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: -0.25rem 0 0.25rem;
+}
+
+.name-prompt-input {
+  width: 100%;
+  padding: 0.875rem 1rem;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 0.875rem;
+  color: var(--text);
+  font-size: 1.05rem;
+  font-family: inherit;
+  font-weight: 500;
+  text-align: center;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.name-prompt-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.name-prompt-input::placeholder { color: var(--text-ghost); }
+
+.name-prompt-btn {
+  width: 100%;
+  padding: 0.875rem;
+  background: var(--accent);
+  color: white;
+  border-radius: 0.875rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.name-prompt-btn:hover { background: var(--accent-hover); }
+.name-prompt-btn:disabled { opacity: 0.35; cursor: default; }
+
+.name-prompt-skip {
+  background: transparent;
+  color: var(--text-ghost);
+  font-size: 0.875rem;
+  font-family: inherit;
+  padding: 0.25rem;
+  transition: color 0.15s;
+}
+
+.name-prompt-skip:hover { color: var(--text-muted); }
+
+/* ---- Toast notifications ---- */
+
+.toast-container {
+  position: fixed;
+  top: env(safe-area-inset-top, 0.75rem);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  pointer-events: none;
+  padding-top: 0.75rem;
+  align-items: center;
+}
+
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  padding: 0.45rem 1.1rem;
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  box-shadow: 0 4px 16px var(--shadow);
+  animation: toast-in 0.2s ease both;
+  white-space: nowrap;
+}
+
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(-10px) scale(0.95); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 /* ---- Accent colour swatches ---- */
 
 .accent-swatches {

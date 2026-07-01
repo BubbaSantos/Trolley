@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.14.11'
+const VERSION = '2.15.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -73,6 +73,14 @@ const ACCENTS = [
   { id: 'sky',     label: 'Sky',     color: '#0ea5e9', hover: '#0284c7', light: '#38bdf8', rgb: '14,165,233' },
   { id: 'cyan',    label: 'Cyan',    color: '#06b6d4', hover: '#0891b2', light: '#22d3ee', rgb: '6,182,212' },
 ]
+
+function nameColor(name) {
+  if (!name) return '#94a3b8'
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h << 5) - h)
+  const cs = ['#ef4444','#f97316','#eab308','#22c55e','#06b6d4','#6366f1','#a855f7','#ec4899']
+  return cs[Math.abs(h) % cs.length]
+}
 
 function applyAccent(id) {
   const a = ACCENTS.find(x => x.id === id) || ACCENTS[0]
@@ -289,6 +297,13 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
           <span className="item-name-group">
             {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
             {isPrimed && <span className="tap-hint">tap again to check</span>}
+            {!isPrimed && (
+              (item.checked || isStriking) && item.checked_by
+                ? <span className="item-attribution">checked by {item.checked_by}</span>
+                : !item.checked && !isStriking && item.added_by
+                ? <span className="item-attribution">added by {item.added_by}</span>
+                : null
+            )}
           </span>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>
@@ -574,6 +589,11 @@ export default function App() {
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
+  const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
+  const [showNamePrompt, setShowNamePrompt] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [onlineUsers, setOnlineUsers] = useState([])
+  const [toasts, setToasts] = useState([])
 
   const inputRef = useRef(null)
   const channelRef = useRef(null)
@@ -586,11 +606,15 @@ export default function App() {
   const strikeTimerRef = useRef({})
   const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
+  const userNameRef = useRef(localStorage.getItem('trolley_username') || '')
+  const clientIdRef = useRef(crypto.randomUUID())
+  const toastIdRef = useRef(0)
   const online = useOnlineStatus()
   const prevOnlineRef = useRef(true)
 
   useEffect(() => { itemsRef.current = items }, [items])
   useEffect(() => { historyRef.current = history }, [history])
+  useEffect(() => { userNameRef.current = userName }, [userName])
 
   const allCategories = [...products.categories, ...customCategories]
   const getCat = (id) => allCategories.find(c => c.id === id)
@@ -620,7 +644,10 @@ export default function App() {
 
   useEffect(() => {
     const saved = localStorage.getItem('trolley_code')
-    if (saved) { setListCode(saved); listCodeRef.current = saved; loadAndSubscribe(saved) }
+    if (saved) {
+      setListCode(saved); listCodeRef.current = saved; loadAndSubscribe(saved)
+      if (!localStorage.getItem('trolley_username')) setShowNamePrompt(true)
+    }
     return () => channelRef.current?.unsubscribe()
   }, [])
 
@@ -648,6 +675,23 @@ export default function App() {
   }, [history])
 
   function toggleTheme() { setTheme(t => t === 'dark' ? 'light' : 'dark') }
+
+  function saveName(name) {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    localStorage.setItem('trolley_username', trimmed)
+    userNameRef.current = trimmed
+    setUserName(trimmed)
+    setShowNamePrompt(false)
+    setNameInput('')
+    if (channelRef.current) channelRef.current.track({ username: trimmed })
+  }
+
+  function addToast(message) {
+    const id = ++toastIdRef.current
+    setToasts(prev => [...prev, { id, message }])
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 3000)
+  }
 
   function changeAccent(id) {
     setAccentId(id)
@@ -892,7 +936,25 @@ export default function App() {
         const { data } = await supabase.from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true })
         if (data) { setItems(data); setCachedItems(code, data) }
       })
-      .subscribe((status) => {
+      .on('broadcast', { event: 'item_deleted' }, ({ payload }) => {
+        if (payload?.deletedBy && payload?.itemName && payload?.clientId !== clientIdRef.current) {
+          addToast(`${payload.itemName} removed by ${payload.deletedBy}`)
+        }
+      })
+      .on('presence', { event: 'sync' }, () => {
+        const state = channelRef.current.presenceState()
+        const users = [...new Set(Object.values(state).flat().map(p => p.username).filter(Boolean))]
+        setOnlineUsers(users)
+      })
+      .on('presence', { event: 'leave' }, () => {
+        const state = channelRef.current.presenceState()
+        const users = [...new Set(Object.values(state).flat().map(p => p.username).filter(Boolean))]
+        setOnlineUsers(users)
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED' && userNameRef.current) {
+          await channelRef.current.track({ username: userNameRef.current })
+        }
         if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && listCodeRef.current) {
           clearTimeout(reconnectTimerRef.current)
           reconnectTimerRef.current = setTimeout(() => {
@@ -912,6 +974,7 @@ export default function App() {
     if (!code) return
     localStorage.setItem('trolley_code', code); listCodeRef.current = code; setListCode(code)
     await loadAndSubscribe(code); setInputCode('')
+    if (!userNameRef.current) setShowNamePrompt(true)
   }
 
   async function createList() {
@@ -919,6 +982,7 @@ export default function App() {
     if (navigator.onLine) await supabase.from('lists').insert({ code })
     localStorage.setItem('trolley_code', code); listCodeRef.current = code; setListCode(code)
     await loadAndSubscribe(code)
+    if (!userNameRef.current) setShowNamePrompt(true)
   }
 
   function historyOrderIndex(name) {
@@ -1009,8 +1073,14 @@ export default function App() {
     setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
     locallyAddedIdsRef.current.add(newItem.id)
     markEntering(newItem.id)
-    if (navigator.onLine) { await supabase.from('list_items').upsert(newItem, { onConflict: 'id' }); notifyChange() }
-    else enqueue({ type: 'INSERT', data: newItem })
+    if (navigator.onLine) {
+      const { error } = await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
+      if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+        const { added_by, checked_by, ...base } = newItem
+        await supabase.from('list_items').upsert(base, { onConflict: 'id' })
+      }
+      notifyChange()
+    } else enqueue({ type: 'INSERT', data: newItem })
   }
 
   async function addItem(product) {
@@ -1019,12 +1089,12 @@ export default function App() {
     const storedName = inputQty ? `${inputQty} ${product.name}` : product.name
     const catId = product.category || 'other'
     if (catId === 'other') {
-      setPendingItemData({ id, list_code: listCode, name: storedName, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString() })
+      setPendingItemData({ id, list_code: listCode, name: storedName, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
       setInput(''); setInputQty(null); setSuggestions([])
       return
     }
     const cat = allCategories.find(c => c.id === catId)
-    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString() }
+    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     if (product.fromHistory) {
       keepSuggestionsRef.current = true
       const refreshed = getHistorySuggestions([product.name])
@@ -1045,12 +1115,12 @@ export default function App() {
     const learned = getCustomProducts().find(p => p.name.toLowerCase() === cleanName.toLowerCase() && p.category && p.category !== 'other')
     const id = crypto.randomUUID()
     if (!learned) {
-      setPendingItemData({ id, list_code: listCode, name: storedName, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString() })
+      setPendingItemData({ id, list_code: listCode, name: storedName, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
       setInput(''); setInputQty(null); setSuggestions([])
       return
     }
     const cat = allCategories.find(c => c.id === learned.category)
-    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: learned.category, checked: false, created_at: new Date().toISOString() }
+    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: learned.category, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     await doAddItem(newItem)
   }
@@ -1059,11 +1129,11 @@ export default function App() {
     haptic(15)
     const id = crypto.randomUUID()
     if (!histItem.category_id || histItem.category_id === 'other') {
-      setPendingItemData({ id, list_code: listCode, name: histItem.name, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString() })
+      setPendingItemData({ id, list_code: listCode, name: histItem.name, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
       return
     }
     const cat = allCategories.find(c => c.id === histItem.category_id)
-    await doAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: histItem.category_id, checked: false, created_at: new Date().toISOString() })
+    await doAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: histItem.category_id, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
   }
 
   async function confirmItemCategory(catId) {
@@ -1097,21 +1167,42 @@ export default function App() {
         delete strikeTimerRef.current[id]
         setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
         const now = Date.now()
-        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now } : i); setCachedItems(listCode, next); return next })
-        if (navigator.onLine) { await supabase.from('list_items').update({ checked: true }).eq('id', id); notifyChange() }
-        else enqueue({ type: 'UPDATE', id, data: { checked: true } })
+        const checkedBy = userNameRef.current || null
+        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now, checked_by: checkedBy } : i); setCachedItems(listCode, next); return next })
+        if (navigator.onLine) {
+          const update = { checked: true, checked_by: checkedBy }
+          const { error } = await supabase.from('list_items').update(update).eq('id', id)
+          if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+            await supabase.from('list_items').update({ checked: true }).eq('id', id)
+          }
+          notifyChange()
+        } else enqueue({ type: 'UPDATE', id, data: { checked: true, checked_by: checkedBy } })
       }, 1300)
     } else {
-      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) { await supabase.from('list_items').update({ checked: false }).eq('id', id); notifyChange() }
-      else enqueue({ type: 'UPDATE', id, data: { checked: false } })
+      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
+      if (navigator.onLine) {
+        const { error } = await supabase.from('list_items').update({ checked: false, checked_by: null }).eq('id', id)
+        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          await supabase.from('list_items').update({ checked: false }).eq('id', id)
+        }
+        notifyChange()
+      } else enqueue({ type: 'UPDATE', id, data: { checked: false, checked_by: null } })
     }
   }
 
   async function deleteItem(id) {
     haptic([10, 50, 20])
-    const item = items.find(i => i.id === id)
-    if (item) recordHistory(item)
+    const item = itemsRef.current.find(i => i.id === id)
+    if (item) {
+      recordHistory(item)
+      if (userNameRef.current && navigator.onLine) {
+        const { name: itemDisplayName } = parseItemName(item.name)
+        channelRef.current?.send({
+          type: 'broadcast', event: 'item_deleted',
+          payload: { itemName: itemDisplayName, deletedBy: userNameRef.current, clientId: clientIdRef.current },
+        })
+      }
+    }
     setItems(prev => { const next = prev.filter(i => i.id !== id); setCachedItems(listCode, next); return next })
     if (navigator.onLine) { await supabase.from('list_items').delete().eq('id', id); notifyChange() }
     else enqueue({ type: 'DELETE', id })
@@ -1145,7 +1236,7 @@ export default function App() {
   function leaveList() {
     channelRef.current?.unsubscribe()
     localStorage.removeItem('trolley_code'); listCodeRef.current = null
-    setListCode(null); setItems([]); setHistory([]); setInput(''); setSuggestions([])
+    setListCode(null); setItems([]); setHistory([]); setInput(''); setSuggestions([]); setOnlineUsers([])
   }
 
   async function clearList() {
@@ -1333,6 +1424,25 @@ export default function App() {
           </div>
         </div>
         <div className="header-right">
+          {onlineUsers.length > 0 && (
+            <div className="online-users">
+              {onlineUsers.slice(0, 4).map((name, i) => (
+                <span
+                  key={i}
+                  className="online-avatar"
+                  title={name}
+                  style={{ background: nameColor(name), zIndex: 4 - i }}
+                >
+                  {name.charAt(0).toUpperCase()}
+                </span>
+              ))}
+              {onlineUsers.length > 4 && (
+                <span className="online-avatar online-more-avatar" style={{ background: 'var(--surface)', color: 'var(--text-muted)', zIndex: 0 }}>
+                  +{onlineUsers.length - 4}
+                </span>
+              )}
+            </div>
+          )}
           {!online && <span className="offline-badge">Offline</span>}
           <button onClick={openSettings} className="icon-btn" aria-label="Settings">⚙️</button>
         </div>
@@ -1623,6 +1733,13 @@ export default function App() {
             <div className="sheet-body">
               {settingsView === 'main' && (
                 <>
+                  <button className="settings-nav-item" onClick={() => { setNameInput(userName); setShowNamePrompt(true); closeSettings() }}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Your Name</span>
+                      <span className="settings-nav-sub">{userName || 'Not set'}</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
                   <button className="settings-nav-item" onClick={() => setSettingsView('appearance')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Appearance</span>
@@ -1946,6 +2063,49 @@ export default function App() {
           <span className="tab-label">History</span>
         </button>
       </nav>
+
+      {/* Name prompt */}
+      {showNamePrompt && (
+        <div className="overlay name-prompt-overlay">
+          <div className="name-prompt" onClick={e => e.stopPropagation()}>
+            <div className="name-prompt-emoji">👋</div>
+            <h2 className="name-prompt-title">What's your name?</h2>
+            <p className="name-prompt-sub">So others on your list can see who added items</p>
+            <input
+              type="text"
+              placeholder="Your name"
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') saveName(nameInput) }}
+              className="name-prompt-input"
+              autoFocus
+              autoComplete="off"
+              maxLength={30}
+            />
+            <button
+              className="name-prompt-btn"
+              onClick={() => saveName(nameInput)}
+              disabled={!nameInput.trim()}
+            >
+              Continue
+            </button>
+            {userName && (
+              <button className="name-prompt-skip" onClick={() => setShowNamePrompt(false)}>
+                Cancel
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Toast notifications */}
+      {toasts.length > 0 && (
+        <div className="toast-container">
+          {toasts.map(t => (
+            <div key={t.id} className="toast">{t.message}</div>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

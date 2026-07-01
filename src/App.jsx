@@ -590,6 +590,7 @@ export default function App() {
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
   const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
+  const [userColor, setUserColor] = useState(() => localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const [showNamePrompt, setShowNamePrompt] = useState(false)
   const [nameInput, setNameInput] = useState('')
   const [onlineUsers, setOnlineUsers] = useState([])
@@ -607,6 +608,7 @@ export default function App() {
   const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
   const userNameRef = useRef(localStorage.getItem('trolley_username') || '')
+  const userColorRef = useRef(localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const clientIdRef = useRef(crypto.randomUUID())
   const toastIdRef = useRef(0)
   const online = useOnlineStatus()
@@ -615,6 +617,7 @@ export default function App() {
   useEffect(() => { itemsRef.current = items }, [items])
   useEffect(() => { historyRef.current = history }, [history])
   useEffect(() => { userNameRef.current = userName }, [userName])
+  useEffect(() => { userColorRef.current = userColor }, [userColor])
 
   const allCategories = [...products.categories, ...customCategories]
   const getCat = (id) => allCategories.find(c => c.id === id)
@@ -680,11 +683,13 @@ export default function App() {
     const trimmed = name.trim()
     if (!trimmed) return
     localStorage.setItem('trolley_username', trimmed)
+    localStorage.setItem('trolley_usercolor', userColorRef.current)
     userNameRef.current = trimmed
     setUserName(trimmed)
+    setUserColor(userColorRef.current)
     setShowNamePrompt(false)
     setNameInput('')
-    if (channelRef.current) channelRef.current.track({ username: trimmed })
+    if (channelRef.current) channelRef.current.track({ username: trimmed, userColor: userColorRef.current })
   }
 
   function addToast(message) {
@@ -943,17 +948,23 @@ export default function App() {
       })
       .on('presence', { event: 'sync' }, () => {
         const state = channelRef.current.presenceState()
-        const users = [...new Set(Object.values(state).flat().map(p => p.username).filter(Boolean))]
+        const seen = new Set()
+        const users = Object.values(state).flat()
+          .filter(p => p.username && !seen.has(p.username) && seen.add(p.username))
+          .map(p => ({ username: p.username, color: p.userColor || nameColor(p.username) }))
         setOnlineUsers(users)
       })
       .on('presence', { event: 'leave' }, () => {
         const state = channelRef.current.presenceState()
-        const users = [...new Set(Object.values(state).flat().map(p => p.username).filter(Boolean))]
+        const seen = new Set()
+        const users = Object.values(state).flat()
+          .filter(p => p.username && !seen.has(p.username) && seen.add(p.username))
+          .map(p => ({ username: p.username, color: p.userColor || nameColor(p.username) }))
         setOnlineUsers(users)
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED' && userNameRef.current) {
-          await channelRef.current.track({ username: userNameRef.current })
+          await channelRef.current.track({ username: userNameRef.current, userColor: userColorRef.current })
         }
         if ((status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') && listCodeRef.current) {
           clearTimeout(reconnectTimerRef.current)
@@ -1426,14 +1437,14 @@ export default function App() {
         <div className="header-right">
           {onlineUsers.length > 0 && (
             <div className="online-users">
-              {onlineUsers.slice(0, 4).map((name, i) => (
+              {onlineUsers.slice(0, 4).map((user, i) => (
                 <span
                   key={i}
                   className="online-avatar"
-                  title={name}
-                  style={{ background: nameColor(name), zIndex: 4 - i }}
+                  title={user.username}
+                  style={{ background: user.color, zIndex: 4 - i }}
                 >
-                  {name.charAt(0).toUpperCase()}
+                  {user.username.charAt(0).toUpperCase()}
                 </span>
               ))}
               {onlineUsers.length > 4 && (
@@ -1733,7 +1744,7 @@ export default function App() {
             <div className="sheet-body">
               {settingsView === 'main' && (
                 <>
-                  <button className="settings-nav-item" onClick={() => { setNameInput(userName); setShowNamePrompt(true); closeSettings() }}>
+                  <button className="settings-nav-item" onClick={() => { setNameInput(userName); userColorRef.current = userColor; setShowNamePrompt(true); closeSettings() }}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Your Name</span>
                       <span className="settings-nav-sub">{userName || 'Not set'}</span>
@@ -2068,7 +2079,12 @@ export default function App() {
       {showNamePrompt && (
         <div className="overlay name-prompt-overlay">
           <div className="name-prompt" onClick={e => e.stopPropagation()}>
-            <div className="name-prompt-emoji">👋</div>
+            <span
+              className="name-prompt-avatar"
+              style={{ background: userColor }}
+            >
+              {nameInput.trim() ? nameInput.trim().charAt(0).toUpperCase() : '?'}
+            </span>
             <h2 className="name-prompt-title">What's your name?</h2>
             <p className="name-prompt-sub">So others on your list can see who added items</p>
             <input
@@ -2082,6 +2098,17 @@ export default function App() {
               autoComplete="off"
               maxLength={30}
             />
+            <p className="name-prompt-color-label">Choose your colour</p>
+            <div className="name-prompt-colors">
+              {PRESET_COLORS.map(c => (
+                <button
+                  key={c}
+                  className={`name-prompt-color-swatch${userColor === c ? ' selected' : ''}`}
+                  style={{ background: c }}
+                  onClick={() => { setUserColor(c); userColorRef.current = c }}
+                />
+              ))}
+            </div>
             <button
               className="name-prompt-btn"
               onClick={() => saveName(nameInput)}

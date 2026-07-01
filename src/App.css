@@ -2051,10 +2051,19 @@ header h1 {
   animation: slide-up 0.25s ease;
 }
 
-.name-prompt-emoji {
-  font-size: 2.5rem;
-  line-height: 1;
+.name-prompt-avatar {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: white;
   margin-bottom: 0.25rem;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
 }
 
 .name-prompt-title {
@@ -2106,6 +2115,38 @@ header h1 {
 
 .name-prompt-btn:hover { background: var(--accent-hover); }
 .name-prompt-btn:disabled { opacity: 0.35; cursor: default; }
+
+.name-prompt-color-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  align-self: flex-start;
+  margin-bottom: -0.25rem;
+}
+
+.name-prompt-colors {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.name-prompt-color-swatch {
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: transform 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+  outline: 2px solid transparent;
+}
+
+.name-prompt-color-swatch:hover { transform: scale(1.1); }
+.name-prompt-color-swatch.selected { border-color: var(--text); transform: scale(1.15); }
 
 .name-prompt-skip {
   background: transparent;

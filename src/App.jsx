@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.5'
+const VERSION = '2.15.6'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -322,7 +322,9 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
             )}
           </div>
           <span className="item-name-group">
-            {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+            <span className="item-name-line">
+              {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+            </span>
             {isPrimed && <span className="tap-hint">tap again to check</span>}
             {!isPrimed && (
               (item.checked || isStriking) && item.checked_by
@@ -456,7 +458,9 @@ function RecipeIngredientRow({ ingredient, index, onDelete, onInfo }) {
           onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } }}
         >
           <span className="item-name-group">
-            {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+            <span className="item-name-line">
+              {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+            </span>
           </span>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(index) }} aria-label="Ingredient details" />
         </div>
@@ -816,8 +820,6 @@ export default function App() {
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
   useEffect(() => { const t = setTimeout(() => setShowVersion(false), 2000); return () => clearTimeout(t) }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
-  useEffect(() => { if (listCode) setRecipes(getRecipes(listCode)) }, [listCode])
-  useEffect(() => { if (listCode) saveRecipesFor(listCode, recipes) }, [recipes, listCode])
 
   useEffect(() => {
     if (history.length === 0) return
@@ -1050,14 +1052,21 @@ export default function App() {
     channelRef.current?.unsubscribe()
     const cached = getCachedItems(code)
     if (cached.length > 0) setItems(cached)
+    const cachedRecipes = getRecipes(code)
+    if (cachedRecipes.length > 0) setRecipes(cachedRecipes)
     if (!navigator.onLine) return
     await flushQueue()
-    const [{ data: itemData }, { data: histData }] = await Promise.all([
+    const [{ data: itemData }, { data: histData }, { data: recipeData }] = await Promise.all([
       supabase.from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true }),
       supabase.from('list_history').select('*').eq('list_code', code),
+      supabase.from('list_recipes').select('*').eq('list_code', code).order('created_at', { ascending: true }),
     ])
     if (itemData) { setItems(itemData); setCachedItems(code, itemData) }
     if (histData) setHistory(histData)
+    if (recipeData) {
+      const mapped = recipeData.map(r => ({ id: r.id, name: r.name, ingredients: r.ingredients || [] }))
+      setRecipes(mapped); saveRecipesFor(code, mapped)
+    }
 
     channelRef.current = supabase
       .channel(`list:${code}`)
@@ -1095,6 +1104,21 @@ export default function App() {
         }
         if (payload.eventType === 'DELETE') {
           setHistory(prev => prev.filter(h => h.name !== payload.old.name))
+        }
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'list_recipes' }, (payload) => {
+        if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+          if (payload.new.list_code !== code) return
+          const mapped = { id: payload.new.id, name: payload.new.name, ingredients: payload.new.ingredients || [] }
+          setRecipes(prev => {
+            const idx = prev.findIndex(r => r.id === mapped.id)
+            const next = idx >= 0 ? prev.map((r, i) => i === idx ? mapped : r) : [...prev, mapped]
+            saveRecipesFor(code, next)
+            return next
+          })
+        }
+        if (payload.eventType === 'DELETE') {
+          setRecipes(prev => { const next = prev.filter(r => r.id !== payload.old.id); saveRecipesFor(code, next); return next })
         }
       })
       .on('broadcast', { event: 'change' }, async () => {
@@ -1407,7 +1431,7 @@ export default function App() {
   function leaveList() {
     channelRef.current?.unsubscribe()
     localStorage.removeItem('trolley_code'); listCodeRef.current = null
-    setListCode(null); setItems([]); setHistory([]); setInput(''); setSuggestions([]); setOnlineUsers([])
+    setListCode(null); setItems([]); setHistory([]); setRecipes([]); setInput(''); setSuggestions([]); setOnlineUsers([])
   }
 
   async function clearList() {
@@ -1605,25 +1629,56 @@ export default function App() {
     })
   }
 
-  function saveRecipe() {
+  function openRecipeIngredientCategoryPicker() {
+    if (recipeIngredientDetailIndex === null) return
+    const idx = recipeIngredientDetailIndex
+    const newName = buildRecipeIngredientDetailName()
+    if (newName) {
+      setRecipeEditing(prev => {
+        const next = [...prev.ingredients]
+        next[idx] = newName
+        return { ...prev, ingredients: next }
+      })
+    }
+    const { name: baseName } = parseItemName(newName || recipeEditing.ingredients[idx])
+    const catId = resolveIngredientCategory(baseName)
+    setRecipeIngredientDetailIndex(null)
+    setPickerItem({ name: baseName, category_id: catId, _forRecipeIngredient: true })
+  }
+
+  function changeRecipeIngredientCategory(catId) {
+    if (!pickerItem) return
+    upsertCustomProduct(pickerItem.name, catId)
+    setPickerItem(null)
+  }
+
+  async function saveRecipe() {
     const name = recipeNameInput.trim()
     if (!name || !recipeEditing.ingredients.length) return
     const toSave = { ...recipeEditing, name }
     setRecipes(prev => {
       const idx = prev.findIndex(r => r.id === toSave.id)
-      if (idx >= 0) { const next = [...prev]; next[idx] = toSave; return next }
-      return [...prev, toSave]
+      const next = idx >= 0 ? prev.map((r, i) => i === idx ? toSave : r) : [...prev, toSave]
+      saveRecipesFor(listCode, next)
+      return next
     })
     setRecipeEditing(null)
+    if (navigator.onLine) {
+      await supabase.from('list_recipes').upsert(
+        { id: toSave.id, list_code: listCode, name: toSave.name, ingredients: toSave.ingredients },
+        { onConflict: 'id' },
+      )
+    }
   }
 
   function cancelRecipeEdit() { setRecipeEditing(null); setConfirmDeleteRecipe(false) }
 
-  function deleteRecipe(id) {
-    setRecipes(prev => prev.filter(r => r.id !== id))
+  async function deleteRecipe(id) {
+    setRecipes(prev => { const next = prev.filter(r => r.id !== id); saveRecipesFor(listCode, next); return next })
     setConfirmDeleteRecipe(false)
     setRecipeEditing(null)
     setViewingRecipe(null)
+    if (navigator.onLine) await supabase.from('list_recipes').delete().eq('id', id)
   }
 
   function openRecipeView(recipe) {
@@ -2171,6 +2226,45 @@ export default function App() {
                   )}
                 </div>
               </div>
+              {(() => {
+                const cleanName = recipeIngredientDetailName.trim()
+                if (!cleanName) return null
+                const catId = resolveIngredientCategory(cleanName)
+                const histEntry = history.find(h => h.name.toLowerCase() === cleanName.toLowerCase())
+                const isFav = histEntry?.is_favourite || false
+                const count = histEntry?.count || 0
+                const lastBought = histEntry?.last_used
+                  ? new Date(histEntry.last_used).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+                  : null
+                return (
+                  <>
+                    <button className="detail-cat-row" onClick={openRecipeIngredientCategoryPicker}>
+                      <span className="detail-cat-label">Category</span>
+                      <span className="detail-cat-value">
+                        {getCat(catId)?.icon ?? '🛍️'}
+                        {getCat(catId)?.name ?? 'Other'}
+                      </span>
+                      <span className="detail-cat-arrow">›</span>
+                    </button>
+                    {count > 0 && (
+                      <div className="detail-cat-row detail-stat-row">
+                        <span className="detail-cat-label">Times bought</span>
+                        <span className="detail-stat-value">{count}</span>
+                      </div>
+                    )}
+                    {lastBought && (
+                      <div className="detail-cat-row detail-stat-row">
+                        <span className="detail-cat-label">Last bought</span>
+                        <span className="detail-stat-value">{lastBought}</span>
+                      </div>
+                    )}
+                    <button className="detail-cat-row" onClick={() => toggleFavourite(cleanName)}>
+                      <span className="detail-cat-label">Favourite</span>
+                      <span className={`detail-fav-toggle${isFav ? ' active' : ''}`}>{isFav ? '★' : '☆'}</span>
+                    </button>
+                  </>
+                )
+              })()}
             </div>
           </BottomSheet>
         </div>
@@ -2278,7 +2372,7 @@ export default function App() {
             <div className="sheet-body">
               {allCategories.map(cat => (
                 <button key={cat.id} className={`cat-option${pickerItem.category_id === cat.id ? ' active' : ''}`}
-                  onClick={() => changeCategory(pickerItem.id, cat.id)}>
+                  onClick={() => pickerItem._forRecipeIngredient ? changeRecipeIngredientCategory(cat.id) : changeCategory(pickerItem.id, cat.id)}>
                   <span className="cat-option-icon">{cat.icon}</span>
                   <span className="cat-option-name">{cat.name}</span>
                   {pickerItem.category_id === cat.id && <span className="cat-option-check">✓</span>}

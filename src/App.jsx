@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.8'
+const VERSION = '2.15.9'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -73,6 +73,34 @@ const ACCENTS = [
   { id: 'sky',     label: 'Sky',     color: '#0ea5e9', hover: '#0284c7', light: '#38bdf8', rgb: '14,165,233' },
   { id: 'cyan',    label: 'Cyan',    color: '#06b6d4', hover: '#0891b2', light: '#22d3ee', rgb: '6,182,212' },
 ]
+
+function CartIcon() {
+  return (
+    <svg className="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="9" cy="21" r="1" />
+      <circle cx="20" cy="21" r="1" />
+      <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+    </svg>
+  )
+}
+
+function ClockIcon() {
+  return (
+    <svg className="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
+  )
+}
+
+function BookIcon() {
+  return (
+    <svg className="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  )
+}
 
 function nameColor(name) {
   if (!name) return '#94a3b8'
@@ -486,7 +514,7 @@ function RecipeIngredientRow({ ingredient, index, onDelete, onInfo }) {
   )
 }
 
-function SwipeRecipeItem({ recipe, onOpen, onDelete }) {
+function SwipeRecipeItem({ recipe, onOpen, onDelete, onToggleFavourite }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const txRef = useRef(0)
@@ -533,6 +561,11 @@ function SwipeRecipeItem({ recipe, onOpen, onDelete }) {
         >
           <span className="history-name">{recipe.name}</span>
           <span className="recipe-ingredient-count">{recipe.ingredients.length} item{recipe.ingredients.length !== 1 ? 's' : ''}</span>
+          <button
+            className={`recipe-fav-btn${recipe.is_favourite ? ' active' : ''}`}
+            onClick={e => { e.stopPropagation(); onToggleFavourite(recipe.id) }}
+            aria-label="Toggle favourite"
+          >{recipe.is_favourite ? '★' : '☆'}</button>
           <span className="recipe-row-arrow">›</span>
         </div>
       </div>
@@ -728,6 +761,7 @@ export default function App() {
     try { return JSON.parse(localStorage.getItem('trolley_history_order') || '[]') } catch { return [] }
   })
   const [recipes, setRecipes] = useState([])
+  const [recipeSearch, setRecipeSearch] = useState('')
   const [recipeEditing, setRecipeEditing] = useState(null)
   const [recipeNameInput, setRecipeNameInput] = useState('')
   const [recipeIngredientInput, setRecipeIngredientInput] = useState('')
@@ -1083,7 +1117,7 @@ export default function App() {
     if (itemData) { setItems(itemData); setCachedItems(code, itemData) }
     if (histData) setHistory(histData)
     if (recipeData) {
-      const mapped = recipeData.map(r => ({ id: r.id, name: r.name, ingredients: r.ingredients || [] }))
+      const mapped = recipeData.map(r => ({ id: r.id, name: r.name, ingredients: r.ingredients || [], is_favourite: r.is_favourite || false }))
       setRecipes(mapped); saveRecipesFor(code, mapped)
     }
 
@@ -1128,7 +1162,7 @@ export default function App() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'list_recipes' }, (payload) => {
         if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
           if (payload.new.list_code !== code) return
-          const mapped = { id: payload.new.id, name: payload.new.name, ingredients: payload.new.ingredients || [] }
+          const mapped = { id: payload.new.id, name: payload.new.name, ingredients: payload.new.ingredients || [], is_favourite: payload.new.is_favourite || false }
           setRecipes(prev => {
             const idx = prev.findIndex(r => r.id === mapped.id)
             const next = idx >= 0 ? prev.map((r, i) => i === idx ? mapped : r) : [...prev, mapped]
@@ -1529,7 +1563,7 @@ export default function App() {
   // --- Recipes ---
   function startNewRecipe() {
     setConfirmDeleteRecipe(false)
-    setRecipeEditing({ id: crypto.randomUUID(), name: '', ingredients: [] })
+    setRecipeEditing({ id: crypto.randomUUID(), name: '', ingredients: [], is_favourite: false })
     setRecipeNameInput('')
     setRecipeIngredientInput('')
     setRecipeIngredientQty(null)
@@ -1725,7 +1759,7 @@ export default function App() {
   async function saveRecipe() {
     const name = recipeNameInput.trim()
     if (!name || !recipeEditing.ingredients.length) return
-    const toSave = { ...recipeEditing, name }
+    const toSave = { ...recipeEditing, name, is_favourite: recipeEditing.is_favourite || false }
     setRecipes(prev => {
       const idx = prev.findIndex(r => r.id === toSave.id)
       const next = idx >= 0 ? prev.map((r, i) => i === idx ? toSave : r) : [...prev, toSave]
@@ -1735,7 +1769,7 @@ export default function App() {
     setRecipeEditing(null)
     if (navigator.onLine) {
       await supabase.from('list_recipes').upsert(
-        { id: toSave.id, list_code: listCode, name: toSave.name, ingredients: toSave.ingredients },
+        { id: toSave.id, list_code: listCode, name: toSave.name, ingredients: toSave.ingredients, is_favourite: toSave.is_favourite },
         { onConflict: 'id' },
       )
     }
@@ -1749,6 +1783,18 @@ export default function App() {
     setRecipeEditing(null)
     setViewingRecipe(null)
     if (navigator.onLine) await supabase.from('list_recipes').delete().eq('id', id)
+  }
+
+  async function toggleRecipeFavourite(id) {
+    const recipe = recipes.find(r => r.id === id)
+    if (!recipe) return
+    const isFav = !recipe.is_favourite
+    setRecipes(prev => {
+      const next = prev.map(r => r.id === id ? { ...r, is_favourite: isFav } : r)
+      saveRecipesFor(listCode, next)
+      return next
+    })
+    if (navigator.onLine) await supabase.from('list_recipes').update({ is_favourite: isFav }).eq('id', id)
   }
 
   function openRecipeView(recipe) {
@@ -1893,6 +1939,19 @@ export default function App() {
   const displayHistory = historySearch
     ? filteredHistory
     : historyOrder.map(name => history.find(h => h.name === name)).filter(Boolean)
+
+  const displayRecipes = [...recipes]
+    .filter(r => {
+      const q = recipeSearch.trim().toLowerCase()
+      if (!q) return true
+      if (r.name.toLowerCase().includes(q)) return true
+      return r.ingredients.some(ing => parseItemName(ing).name.toLowerCase().includes(q))
+    })
+    .sort((a, b) => {
+      if (a.is_favourite && !b.is_favourite) return -1
+      if (!a.is_favourite && b.is_favourite) return 1
+      return a.name.localeCompare(b.name)
+    })
 
   function renderItem(item) {
     return (
@@ -2090,6 +2149,10 @@ export default function App() {
       ) : (
         <>
           <div className="input-section">
+            <input type="text" placeholder="Search recipes or ingredients..." value={recipeSearch}
+              onChange={e => setRecipeSearch(e.target.value)} className="item-input" autoComplete="off" />
+          </div>
+          <div className="input-section">
             <button className="recipe-new-btn" onClick={startNewRecipe}>+ New Recipe</button>
           </div>
           {recipes.length === 0 ? (
@@ -2097,10 +2160,15 @@ export default function App() {
               <p>No recipes yet</p>
               <p className="empty-hint">Save ingredients for meals you make often</p>
             </div>
+          ) : displayRecipes.length === 0 ? (
+            <div className="empty-state">
+              <p>No matching recipes</p>
+              <p className="empty-hint">Try a different search</p>
+            </div>
           ) : (
             <ul className="history-list">
-              {recipes.map(r => (
-                <SwipeRecipeItem key={r.id} recipe={r} onOpen={openRecipeView} onDelete={deleteRecipe} />
+              {displayRecipes.map(r => (
+                <SwipeRecipeItem key={r.id} recipe={r} onOpen={openRecipeView} onDelete={deleteRecipe} onToggleFavourite={toggleRecipeFavourite} />
               ))}
             </ul>
           )}
@@ -2826,15 +2894,15 @@ export default function App() {
 
       <nav className="tab-bar">
         <button className={`tab-btn${tab === 'list' ? ' active' : ''}`} onClick={() => setTab('list')}>
-          <span className="tab-icon">🛒</span>
+          <span className="tab-icon"><CartIcon /></span>
           <span className="tab-label">List</span>
         </button>
         <button className={`tab-btn${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>
-          <span className="tab-icon">🕐</span>
+          <span className="tab-icon"><ClockIcon /></span>
           <span className="tab-label">History</span>
         </button>
         <button className={`tab-btn${tab === 'recipes' ? ' active' : ''}`} onClick={() => setTab('recipes')}>
-          <span className="tab-icon">📖</span>
+          <span className="tab-icon"><BookIcon /></span>
           <span className="tab-label">Recipes</span>
         </button>
       </nav>

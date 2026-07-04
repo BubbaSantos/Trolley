@@ -1283,12 +1283,15 @@ header h1 {
 .recipe-ingredient-remove-btn:hover { color: var(--red); }
 
 .recipe-ingredient-add-row {
+  position: relative;
   display: flex;
   gap: 0.5rem;
   margin: 0.75rem 1.25rem;
 }
 
 .recipe-ingredient-add-row .item-input { flex: 1; }
+
+.recipe-suggestions { z-index: 60; }
 
 .recipe-ingredient-add-btn {
   padding: 0 1rem;

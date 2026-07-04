@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.3'
+const VERSION = '2.15.4'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -626,6 +626,8 @@ export default function App() {
   const [recipeEditing, setRecipeEditing] = useState(null)
   const [recipeNameInput, setRecipeNameInput] = useState('')
   const [recipeIngredientInput, setRecipeIngredientInput] = useState('')
+  const [recipeIngredientQty, setRecipeIngredientQty] = useState(null)
+  const [recipeSuggestions, setRecipeSuggestions] = useState([])
   const [viewingRecipe, setViewingRecipe] = useState(null)
   const [viewingRecipeUnchecked, setViewingRecipeUnchecked] = useState(() => new Set())
   const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState(false)
@@ -1371,6 +1373,8 @@ export default function App() {
     setRecipeEditing({ id: crypto.randomUUID(), name: '', ingredients: [] })
     setRecipeNameInput('')
     setRecipeIngredientInput('')
+    setRecipeIngredientQty(null)
+    setRecipeSuggestions([])
   }
 
   function startEditRecipe(recipe) {
@@ -1378,14 +1382,98 @@ export default function App() {
     setRecipeEditing({ ...recipe, ingredients: [...recipe.ingredients] })
     setRecipeNameInput(recipe.name)
     setRecipeIngredientInput('')
+    setRecipeIngredientQty(null)
+    setRecipeSuggestions([])
     setViewingRecipe(null)
   }
 
-  function addRecipeIngredient() {
-    const val = recipeIngredientInput.trim()
+  function recipeIngredientExcludeSet() {
+    return new Set((recipeEditing?.ingredients || []).map(ing => parseItemName(ing).name.toLowerCase()))
+  }
+
+  function getRecipeIngredientSuggestions() {
+    const exclude = recipeIngredientExcludeSet()
+    const histSugs = history
+      .filter(h => !exclude.has(h.name.toLowerCase()))
+      .sort(compareHistoryForSuggestions)
+      .slice(0, 5)
+      .map(h => {
+        const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
+      })
+    if (histSugs.length >= 5) return histSugs
+    const alreadyShown = new Set([...exclude, ...histSugs.map(s => s.name.toLowerCase())])
+    const hidden = getHiddenProducts()
+    const fallback = COMMON_ITEMS
+      .filter(item => !alreadyShown.has(item.name.toLowerCase()) && !hidden.includes(item.name.toLowerCase()))
+      .slice(0, 5 - histSugs.length)
+      .map(item => ({ name: item.name, category: item.category, fromHistory: true, count: 0 }))
+    return [...histSugs, ...fallback]
+  }
+
+  function handleRecipeIngredientFocus() {
+    const { name: cleanName } = parseInputQty(recipeIngredientInput)
+    if (cleanName.length >= 2) return
+    setRecipeSuggestions(getRecipeIngredientSuggestions())
+  }
+
+  function handleRecipeIngredientBlur() {
+    setTimeout(() => setRecipeSuggestions([]), 150)
+  }
+
+  function handleRecipeIngredientChange(e) {
+    const value = e.target.value
+    setRecipeIngredientInput(value)
+    const { qty, name: cleanName } = parseInputQty(value)
+    setRecipeIngredientQty(qty)
+    if (cleanName.length < 2) { setRecipeSuggestions(getRecipeIngredientSuggestions()); return }
+    const search = cleanName.toLowerCase()
+    const exclude = recipeIngredientExcludeSet()
+    const historyMatches = history
+      .filter(h => h.name.toLowerCase().includes(search) && !exclude.has(h.name.toLowerCase()))
+      .sort(compareHistoryForSuggestions)
+      .slice(0, 5)
+      .map(h => {
+        const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
+      })
+    const historyNames = new Set(historyMatches.map(h => h.name.toLowerCase()))
+    const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search) && !historyNames.has(p.name.toLowerCase()) && !exclude.has(p.name.toLowerCase()))
+    const customNames = new Set([...historyNames, ...customMatches.map(p => p.name.toLowerCase())])
+    const hidden = getHiddenProducts()
+    const builtInMatches = products.products
+      .filter(p => !customNames.has(p.name.toLowerCase()) && !exclude.has(p.name.toLowerCase()))
+      .filter(p => !hidden.includes(p.name.toLowerCase()))
+      .filter(p => p.name.toLowerCase().includes(search) || p.keywords.some(k => k.includes(search)))
+    setRecipeSuggestions([...historyMatches, ...customMatches, ...builtInMatches].slice(0, 8))
+  }
+
+  function addRecipeIngredient(raw) {
+    const val = (raw ?? recipeIngredientInput).trim()
     if (!val) return
-    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, val] }))
+    const { qty, name: cleanName } = parseInputQty(val)
+    const storedName = qty ? `${qty} ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)}` : val
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, storedName] }))
     setRecipeIngredientInput('')
+    setRecipeIngredientQty(null)
+    setRecipeSuggestions([])
+  }
+
+  function addRecipeIngredientFromSuggestion(product) {
+    const storedName = recipeIngredientQty ? `${recipeIngredientQty} ${product.name}` : product.name
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, storedName] }))
+    setRecipeIngredientInput('')
+    setRecipeIngredientQty(null)
+    setRecipeSuggestions([])
+  }
+
+  function handleRecipeIngredientKeyDown(e) {
+    if (e.key === 'Enter' && recipeIngredientInput.trim()) {
+      e.preventDefault()
+      if (recipeSuggestions.length > 0 && !recipeSuggestions[0].fromHistory) addRecipeIngredientFromSuggestion(recipeSuggestions[0])
+      else addRecipeIngredient()
+    }
+    if (e.key === 'Escape') setRecipeSuggestions([])
   }
 
   function removeRecipeIngredient(idx) {
@@ -1821,11 +1909,39 @@ export default function App() {
               <div className="recipe-ingredient-add-row">
                 <input
                   type="text" placeholder="Add ingredient..." value={recipeIngredientInput}
-                  onChange={e => setRecipeIngredientInput(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRecipeIngredient() } }}
+                  onChange={handleRecipeIngredientChange}
+                  onKeyDown={handleRecipeIngredientKeyDown}
+                  onFocus={handleRecipeIngredientFocus}
+                  onBlur={handleRecipeIngredientBlur}
                   className="item-input" autoComplete="off"
                 />
-                <button className="recipe-ingredient-add-btn" onClick={addRecipeIngredient} disabled={!recipeIngredientInput.trim()}>Add</button>
+                <button className="recipe-ingredient-add-btn" onClick={() => addRecipeIngredient()} disabled={!recipeIngredientInput.trim()}>Add</button>
+                {(recipeSuggestions.length > 0 || (recipeIngredientInput.trim() && recipeSuggestions.length === 0)) && (
+                  <div className="suggestions recipe-suggestions">
+                    {recipeSuggestions.length > 0 && recipeSuggestions[0]?.fromHistory && (
+                      <p className="suggestions-header">
+                        {recipeSuggestions.some(s => (s.count || 0) > 0) ? 'Frequently bought' : 'Suggestions'}
+                      </p>
+                    )}
+                    {recipeSuggestions.map(p => (
+                      <button key={p.name} onClick={() => addRecipeIngredientFromSuggestion(p)} className="suggestion-item">
+                        <span className="suggestion-name">
+                          {recipeIngredientQty && <span className="suggestion-qty">{recipeIngredientQty} </span>}
+                          {p.name}
+                        </span>
+                        <span className="suggestion-cat">
+                          {getCat(p.category)?.icon ?? '🛍️'} {getCat(p.category)?.name ?? 'Other'}
+                        </span>
+                      </button>
+                    ))}
+                    {recipeIngredientInput.trim() && (
+                      <button onClick={() => addRecipeIngredient()} className="suggestion-item suggestion-custom">
+                        <span className="suggestion-name">Add &ldquo;{recipeIngredientInput.trim()}&rdquo;</span>
+                        <span className="suggestion-cat">🛍️ Other</span>
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
               {recipeEditing.ingredients.length > 0 && (
                 <ul className="recipe-ingredient-list">

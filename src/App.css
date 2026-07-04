@@ -605,6 +605,17 @@ header h1 {
   background: var(--border);
 }
 
+/* ---- List counter ---- */
+
+.list-counter {
+  text-align: center;
+  padding: 0.25rem 0 0.75rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-ghost);
+  letter-spacing: 0.02em;
+}
+
 /* ---- Empty State ---- */
 
 .empty-state {

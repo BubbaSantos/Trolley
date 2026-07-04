@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.2'
+const VERSION = '2.15.3'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -1662,6 +1662,14 @@ export default function App() {
               </div>
             )}
           </div>
+
+          {items.length > 0 && (
+            <p className="list-counter">
+              {checkedCount > 0
+                ? `${checkedCount}/${items.length} items`
+                : `${items.length} item${items.length !== 1 ? 's' : ''}`}
+            </p>
+          )}
 
           {items.length === 0 ? (
             <div className="empty-state">

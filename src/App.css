@@ -1270,17 +1270,13 @@ header h1 {
   color: var(--text);
 }
 
-.recipe-ingredient-remove-btn {
-  background: transparent;
-  border: none;
-  color: var(--text-ghost);
-  font-size: 0.9rem;
-  padding: 0.25rem;
-  cursor: pointer;
-  flex-shrink: 0;
+.recipe-ingredient-items {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0 1.25rem;
 }
-
-.recipe-ingredient-remove-btn:hover { color: var(--red); }
 
 .recipe-ingredient-add-row {
   position: relative;

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.4'
+const VERSION = '2.15.5'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -180,6 +180,26 @@ function parseItemName(stored) {
   m = stored.match(/^(\d+(?:\.\d+)?(?:kg|g|ml|l|lbs?|oz))\s+(.+)$/i)
   if (m) return { qty: m[1], name: m[2] }
   return { qty: null, name: stored }
+}
+
+function parseQtyAmount(qty) {
+  if (!qty) return { amount: 1, unit: 'x' }
+  let m = qty.match(/^(\d+)x$/i)
+  if (m) return { amount: parseInt(m[1], 10), unit: 'x' }
+  m = qty.match(/^(\d+(?:\.\d+)?)(kg|g|ml|l|lbs?|oz)$/i)
+  if (m) return { amount: parseFloat(m[1]), unit: m[2].toLowerCase() }
+  return null
+}
+
+function tryMergeQty(existingRawName, incomingRawName) {
+  const { qty: existingQty, name: baseName } = parseItemName(existingRawName)
+  const { qty: incomingQty } = parseItemName(incomingRawName)
+  const a = parseQtyAmount(existingQty)
+  const b = parseQtyAmount(incomingQty)
+  if (!a || !b || a.unit !== b.unit) return null
+  const total = a.amount + b.amount
+  const qtyStr = a.unit === 'x' ? `${total}x` : `${Math.round(total * 100) / 100}${a.unit}`
+  return `${qtyStr} ${baseName}`
 }
 
 function haptic(pattern = 10) { try { navigator.vibrate?.(pattern) } catch {} }
@@ -376,6 +396,69 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
           {h.is_favourite && <span className="history-fav">★</span>}
           {onList ? <span className="history-on-list-badge">On list</span>
             : <button className="history-add-btn" onClick={e => { e.stopPropagation(); if (txRef.current !== 0) { setAnimate(true); setTx(0) } else onAdd(h) }}>+</button>}
+        </div>
+      </div>
+    </li>
+  )
+}
+
+function RecipeIngredientRow({ ingredient, index, onDelete, onInfo }) {
+  const [tx, _setTx] = useState(0)
+  const [animate, setAnimate] = useState(false)
+  const txRef = useRef(0)
+  const rowRef = useRef(null)
+  const onDeleteRef = useRef(onDelete)
+  useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
+  function setTx(v) { txRef.current = v; _setTx(v) }
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    let startX = 0, startY = 0, dir = null, baseX = 0
+    function onStart(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false) }
+    function onMove(e) {
+      const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
+      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
+      if (dir !== 'h') return
+      e.preventDefault()
+      setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
+    }
+    function onEnd() {
+      if (dir !== 'h') return
+      setAnimate(true)
+      const t = txRef.current
+      if (t < -AUTO) { setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(index), 260) }
+      else if (t < -(SNAP / 2)) setTx(-SNAP)
+      else setTx(0)
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchmove', onMove); el.removeEventListener('touchend', onEnd) }
+  }, [index])
+
+  const { qty, name: displayName } = parseItemName(ingredient)
+  const displayQty = qty
+    ? (qty.match(/^(\d+)x$/i) ? `x${qty.match(/^(\d+)/)[1]}` : qty)
+    : null
+
+  return (
+    <li className="item-row-outer">
+      <div className="swipe-wrapper">
+        <button
+          className="swipe-delete-btn"
+          onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(index), 260) }}
+        >Delete</button>
+        <div
+          ref={rowRef}
+          className={`swipe-row${animate ? ' animate' : ''}`}
+          style={{ transform: `translateX(${tx}px)` }}
+          onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0) } }}
+        >
+          <span className="item-name-group">
+            {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
+          </span>
+          <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(index) }} aria-label="Ingredient details" />
         </div>
       </div>
     </li>
@@ -628,6 +711,11 @@ export default function App() {
   const [recipeIngredientInput, setRecipeIngredientInput] = useState('')
   const [recipeIngredientQty, setRecipeIngredientQty] = useState(null)
   const [recipeSuggestions, setRecipeSuggestions] = useState([])
+  const [recipeIngredientDetailIndex, setRecipeIngredientDetailIndex] = useState(null)
+  const [recipeIngredientDetailName, setRecipeIngredientDetailName] = useState('')
+  const [recipeIngredientDetailQty, setRecipeIngredientDetailQty] = useState(1)
+  const [recipeIngredientDetailQtyText, setRecipeIngredientDetailQtyText] = useState('')
+  const [recipeIngredientDetailQtyIsText, setRecipeIngredientDetailQtyIsText] = useState(false)
   const [viewingRecipe, setViewingRecipe] = useState(null)
   const [viewingRecipeUnchecked, setViewingRecipeUnchecked] = useState(() => new Set())
   const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState(false)
@@ -1480,6 +1568,43 @@ export default function App() {
     setRecipeEditing(prev => ({ ...prev, ingredients: prev.ingredients.filter((_, i) => i !== idx) }))
   }
 
+  function openRecipeIngredientDetail(idx) {
+    const raw = recipeEditing.ingredients[idx]
+    const { qty, name: baseName } = parseItemName(raw)
+    let numQty = 1, isTextQty = false, textQty = ''
+    if (qty) {
+      const m = qty.match(/^(\d+)x$/i)
+      if (m) numQty = parseInt(m[1])
+      else { isTextQty = true; textQty = qty }
+    }
+    setRecipeIngredientDetailIndex(idx)
+    setRecipeIngredientDetailName(baseName)
+    setRecipeIngredientDetailQty(numQty)
+    setRecipeIngredientDetailQtyIsText(isTextQty)
+    setRecipeIngredientDetailQtyText(textQty)
+  }
+
+  function buildRecipeIngredientDetailName() {
+    const base = recipeIngredientDetailName.trim()
+    if (!base) return null
+    if (recipeIngredientDetailQtyIsText && recipeIngredientDetailQtyText.trim()) return `${recipeIngredientDetailQtyText.trim()} ${base}`
+    if (!recipeIngredientDetailQtyIsText && recipeIngredientDetailQty > 1) return `${recipeIngredientDetailQty}x ${base}`
+    return base
+  }
+
+  function saveRecipeIngredientDetail() {
+    if (recipeIngredientDetailIndex === null) return
+    const idx = recipeIngredientDetailIndex
+    const newName = buildRecipeIngredientDetailName()
+    setRecipeIngredientDetailIndex(null)
+    if (!newName) return
+    setRecipeEditing(prev => {
+      const next = [...prev.ingredients]
+      next[idx] = newName
+      return { ...prev, ingredients: next }
+    })
+  }
+
   function saveRecipe() {
     const name = recipeNameInput.trim()
     if (!name || !recipeEditing.ingredients.length) return
@@ -1528,17 +1653,53 @@ export default function App() {
     const toAdd = viewingRecipe.ingredients.filter((ing, i) => !viewingRecipeUnchecked.has(`${ing}-${i}`))
     if (!toAdd.length) return
     haptic(15)
+
+    const working = [...itemsRef.current]
+    const updates = []
+    const inserts = []
+
     for (const raw of toAdd) {
       const { name: cleanName } = parseItemName(raw)
+      const existingIdx = working.findIndex(i => !i.checked && parseItemName(i.name).name.toLowerCase() === cleanName.toLowerCase())
+      const merged = existingIdx >= 0 ? tryMergeQty(working[existingIdx].name, raw) : null
+      if (merged) {
+        working[existingIdx] = { ...working[existingIdx], name: merged }
+        const existingUpdate = updates.find(u => u.id === working[existingIdx].id)
+        if (existingUpdate) existingUpdate.name = merged
+        else updates.push({ id: working[existingIdx].id, name: merged })
+        continue
+      }
       const catId = resolveIngredientCategory(cleanName)
       const cat = allCategories.find(c => c.id === catId)
-      const id = crypto.randomUUID()
-      await doAddItem({
-        id, list_code: listCode, name: raw, category: cat?.name ?? 'Other', category_id: catId,
+      const newItem = {
+        id: crypto.randomUUID(), list_code: listCode, name: raw, category: cat?.name ?? 'Other', category_id: catId,
         checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null,
-      })
+      }
+      working.push(newItem)
+      inserts.push(newItem)
     }
-    addToast(`Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} from ${viewingRecipe.name}`)
+
+    setItems(working)
+    setCachedItems(listCode, working)
+    inserts.forEach(item => { locallyAddedIdsRef.current.add(item.id); markEntering(item.id) })
+
+    if (navigator.onLine) {
+      for (const u of updates) await supabase.from('list_items').update({ name: u.name }).eq('id', u.id)
+      for (const item of inserts) {
+        const { error } = await supabase.from('list_items').upsert(item, { onConflict: 'id' })
+        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          const { added_by, checked_by, ...base } = item
+          await supabase.from('list_items').upsert(base, { onConflict: 'id' })
+        }
+      }
+      notifyChange()
+    } else {
+      updates.forEach(u => enqueue({ type: 'UPDATE', id: u.id, data: { name: u.name } }))
+      inserts.forEach(item => enqueue({ type: 'INSERT', data: item }))
+    }
+
+    const total = updates.length + inserts.length
+    addToast(`Added ${total} item${total !== 1 ? 's' : ''} from ${viewingRecipe.name}`)
     setViewingRecipe(null)
     setTab('list')
   }
@@ -1944,12 +2105,12 @@ export default function App() {
                 )}
               </div>
               {recipeEditing.ingredients.length > 0 && (
-                <ul className="recipe-ingredient-list">
+                <ul className="recipe-ingredient-items">
                   {recipeEditing.ingredients.map((ing, i) => (
-                    <li key={i} className="recipe-ingredient-row">
-                      <span className="recipe-ingredient-name">{ing}</span>
-                      <button className="recipe-ingredient-remove-btn" onClick={() => removeRecipeIngredient(i)}>✕</button>
-                    </li>
+                    <RecipeIngredientRow
+                      key={i} ingredient={ing} index={i}
+                      onDelete={removeRecipeIngredient} onInfo={openRecipeIngredientDetail}
+                    />
                   ))}
                 </ul>
               )}
@@ -1971,6 +2132,44 @@ export default function App() {
                   )
                 )}
                 <button className="item-edit-cancel-btn" onClick={cancelRecipeEdit}>Cancel</button>
+              </div>
+            </div>
+          </BottomSheet>
+        </div>
+      )}
+
+      {/* Recipe ingredient detail sheet */}
+      {recipeIngredientDetailIndex !== null && (
+        <div className="overlay" onClick={saveRecipeIngredientDetail}>
+          <BottomSheet onClose={saveRecipeIngredientDetail}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <p className="sheet-title">{recipeEditing.ingredients[recipeIngredientDetailIndex]}</p>
+              <button className="sheet-done-btn" onClick={saveRecipeIngredientDetail}>Done</button>
+            </div>
+            <div className="sheet-body">
+              <div className="detail-card">
+                <div className="detail-field">
+                  <input
+                    type="text" value={recipeIngredientDetailName} onChange={e => setRecipeIngredientDetailName(e.target.value)}
+                    className="detail-name-input" placeholder="Ingredient name"
+                    autoComplete="off"
+                  />
+                </div>
+                <div className="detail-divider" />
+                <div className="detail-field detail-qty-row">
+                  <span className="detail-field-label">How many?</span>
+                  {recipeIngredientDetailQtyIsText ? (
+                    <input type="text" value={recipeIngredientDetailQtyText} onChange={e => setRecipeIngredientDetailQtyText(e.target.value)}
+                      className="detail-qty-text" />
+                  ) : (
+                    <div className="qty-stepper">
+                      <button className="qty-btn" onClick={() => setRecipeIngredientDetailQty(q => Math.max(1, q - 1))}>−</button>
+                      <span className="qty-value">{recipeIngredientDetailQty}</span>
+                      <button className="qty-btn" onClick={() => setRecipeIngredientDetailQty(q => q + 1)}>+</button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </BottomSheet>

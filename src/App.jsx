@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.7'
+const VERSION = '2.15.8'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -738,6 +738,7 @@ export default function App() {
   const [recipeIngredientDetailQty, setRecipeIngredientDetailQty] = useState(1)
   const [recipeIngredientDetailQtyText, setRecipeIngredientDetailQtyText] = useState('')
   const [recipeIngredientDetailQtyIsText, setRecipeIngredientDetailQtyIsText] = useState(false)
+  const [pendingRecipeIngredient, setPendingRecipeIngredient] = useState(null)
   const [viewingRecipe, setViewingRecipe] = useState(null)
   const [viewingRecipeUnchecked, setViewingRecipeUnchecked] = useState(() => new Set())
   const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState(false)
@@ -1611,18 +1612,41 @@ export default function App() {
     if (!val) return
     const { qty, name: cleanName } = parseInputQty(val)
     const storedName = qty ? `${qty} ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)}` : val
-    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, storedName] }))
     setRecipeIngredientInput('')
     setRecipeIngredientQty(null)
     setRecipeSuggestions([])
+    if (resolveIngredientCategory(cleanName) === 'other') {
+      setPendingRecipeIngredient(storedName)
+      return
+    }
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, storedName] }))
   }
 
   function addRecipeIngredientFromSuggestion(product) {
     const storedName = recipeIngredientQty ? `${recipeIngredientQty} ${product.name}` : product.name
-    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, storedName] }))
     setRecipeIngredientInput('')
     setRecipeIngredientQty(null)
     setRecipeSuggestions([])
+    const catId = product.category || 'other'
+    if (catId === 'other') {
+      setPendingRecipeIngredient(storedName)
+      return
+    }
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, storedName] }))
+  }
+
+  function confirmRecipeIngredientCategory(catId) {
+    if (!pendingRecipeIngredient) return
+    const { name: cleanName } = parseItemName(pendingRecipeIngredient)
+    upsertCustomProduct(cleanName, catId)
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, pendingRecipeIngredient] }))
+    setPendingRecipeIngredient(null)
+  }
+
+  function addPendingRecipeIngredientUncategorised() {
+    if (!pendingRecipeIngredient) return
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, pendingRecipeIngredient] }))
+    setPendingRecipeIngredient(null)
   }
 
   function handleRecipeIngredientKeyDown(e) {
@@ -2419,6 +2443,35 @@ export default function App() {
               ))}
               <div style={{ padding: '0.75rem 1.25rem' }}>
                 <button className="skip-btn" onClick={addPendingUncategorised}>
+                  Skip — add without category
+                </button>
+              </div>
+            </div>
+          </BottomSheet>
+        </div>
+      )}
+
+      {/* Categorise prompt for new uncategorised recipe ingredients */}
+      {pendingRecipeIngredient && (
+        <div className="overlay" onClick={() => setPendingRecipeIngredient(null)}>
+          <BottomSheet onClose={() => setPendingRecipeIngredient(null)}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <div>
+                <p className="sheet-label">What category is this?</p>
+                <p className="sheet-title">{pendingRecipeIngredient}</p>
+              </div>
+              <button onClick={() => setPendingRecipeIngredient(null)} className="sheet-close">✕</button>
+            </div>
+            <div className="sheet-body">
+              {allCategories.map(cat => (
+                <button key={cat.id} className="cat-option" onClick={() => confirmRecipeIngredientCategory(cat.id)}>
+                  <span className="cat-option-icon">{cat.icon}</span>
+                  <span className="cat-option-name">{cat.name}</span>
+                </button>
+              ))}
+              <div style={{ padding: '0.75rem 1.25rem' }}>
+                <button className="skip-btn" onClick={addPendingRecipeIngredientUncategorised}>
                   Skip — add without category
                 </button>
               </div>

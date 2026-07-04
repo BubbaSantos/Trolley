@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.0'
+const VERSION = '2.15.2'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -144,6 +144,13 @@ function getMergedProductList() {
     .filter(p => !builtInNames.has(p.name.toLowerCase()) && !hidden.includes(p.name.toLowerCase()))
     .map(p => ({ name: p.name, category_id: p.category || 'other', isBuiltIn: false }))
   return [...builtIns, ...customOnly].sort((a, b) => a.name.localeCompare(b.name))
+}
+
+function getRecipes(code) {
+  try { return JSON.parse(localStorage.getItem(`trolley_recipes_${code}`) || '[]') } catch { return [] }
+}
+function saveRecipesFor(code, recipes) {
+  try { localStorage.setItem(`trolley_recipes_${code}`, JSON.stringify(recipes)) } catch {}
 }
 
 function getCustomCategories() {
@@ -375,6 +382,60 @@ function SwipeHistoryItem({ h, onAdd, onDelete, onList, onInfo, sortableRef, sor
   )
 }
 
+function SwipeRecipeItem({ recipe, onOpen, onDelete }) {
+  const [tx, _setTx] = useState(0)
+  const [animate, setAnimate] = useState(false)
+  const txRef = useRef(0)
+  const rowRef = useRef(null)
+  const onDeleteRef = useRef(onDelete)
+  useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
+  function setTx(v) { txRef.current = v; _setTx(v) }
+
+  useEffect(() => {
+    const el = rowRef.current
+    if (!el) return
+    let startX = 0, startY = 0, dir = null, baseX = 0
+    function onStart(e) { startX = e.touches[0].clientX; startY = e.touches[0].clientY; dir = null; baseX = txRef.current; setAnimate(false) }
+    function onMove(e) {
+      const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
+      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
+      if (dir !== 'h') return
+      e.preventDefault()
+      setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
+    }
+    function onEnd() {
+      if (dir !== 'h') return
+      setAnimate(true)
+      const t = txRef.current
+      if (t < -AUTO) { setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(recipe.id), 260) }
+      else if (t < -(SNAP / 2)) setTx(-SNAP)
+      else setTx(0)
+    }
+    el.addEventListener('touchstart', onStart, { passive: true })
+    el.addEventListener('touchmove', onMove, { passive: false })
+    el.addEventListener('touchend', onEnd, { passive: true })
+    return () => { el.removeEventListener('touchstart', onStart); el.removeEventListener('touchmove', onMove); el.removeEventListener('touchend', onEnd) }
+  }, [recipe.id])
+
+  return (
+    <li className="history-item">
+      <div className="swipe-wrapper">
+        <button
+          className="swipe-delete-btn"
+          onClick={() => { setAnimate(true); setTx(-window.innerWidth); setTimeout(() => onDeleteRef.current(recipe.id), 260) }}
+        >Delete</button>
+        <div ref={rowRef} className={`history-item-row${animate ? ' animate' : ''}`} style={{ transform: `translateX(${tx}px)` }}
+          onClick={() => { if (txRef.current !== 0) { setAnimate(true); setTx(0); return }; onOpen(recipe) }}
+        >
+          <span className="history-name">{recipe.name}</span>
+          <span className="recipe-ingredient-count">{recipe.ingredients.length} item{recipe.ingredients.length !== 1 ? 's' : ''}</span>
+          <span className="recipe-row-arrow">›</span>
+        </div>
+      </div>
+    </li>
+  )
+}
+
 function SuggestionHistoryItem({ p, inputQty, onAdd, onDismiss }) {
   const [tx, setTxState] = useState(0)
   const [animating, setAnimating] = useState(false)
@@ -561,6 +622,13 @@ export default function App() {
   const [historyOrder, setHistoryOrder] = useState(() => {
     try { return JSON.parse(localStorage.getItem('trolley_history_order') || '[]') } catch { return [] }
   })
+  const [recipes, setRecipes] = useState([])
+  const [recipeEditing, setRecipeEditing] = useState(null)
+  const [recipeNameInput, setRecipeNameInput] = useState('')
+  const [recipeIngredientInput, setRecipeIngredientInput] = useState('')
+  const [viewingRecipe, setViewingRecipe] = useState(null)
+  const [viewingRecipeUnchecked, setViewingRecipeUnchecked] = useState(() => new Set())
+  const [confirmDeleteRecipe, setConfirmDeleteRecipe] = useState(false)
   const [confirming, setConfirming] = useState(null)
   const [confirmDeleteItem, setConfirmDeleteItem] = useState(false)
   const [confirmClearChecked, setConfirmClearChecked] = useState(false)
@@ -658,6 +726,8 @@ export default function App() {
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
   useEffect(() => { const t = setTimeout(() => setShowVersion(false), 2000); return () => clearTimeout(t) }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
+  useEffect(() => { if (listCode) setRecipes(getRecipes(listCode)) }, [listCode])
+  useEffect(() => { if (listCode) saveRecipesFor(listCode, recipes) }, [recipes, listCode])
 
   useEffect(() => {
     if (history.length === 0) return
@@ -1295,6 +1365,96 @@ export default function App() {
     if (navigator.onLine) await supabase.from('list_history').upsert(updated, { onConflict: 'list_code,name' })
   }
 
+  // --- Recipes ---
+  function startNewRecipe() {
+    setConfirmDeleteRecipe(false)
+    setRecipeEditing({ id: crypto.randomUUID(), name: '', ingredients: [] })
+    setRecipeNameInput('')
+    setRecipeIngredientInput('')
+  }
+
+  function startEditRecipe(recipe) {
+    setConfirmDeleteRecipe(false)
+    setRecipeEditing({ ...recipe, ingredients: [...recipe.ingredients] })
+    setRecipeNameInput(recipe.name)
+    setRecipeIngredientInput('')
+    setViewingRecipe(null)
+  }
+
+  function addRecipeIngredient() {
+    const val = recipeIngredientInput.trim()
+    if (!val) return
+    setRecipeEditing(prev => ({ ...prev, ingredients: [...prev.ingredients, val] }))
+    setRecipeIngredientInput('')
+  }
+
+  function removeRecipeIngredient(idx) {
+    setRecipeEditing(prev => ({ ...prev, ingredients: prev.ingredients.filter((_, i) => i !== idx) }))
+  }
+
+  function saveRecipe() {
+    const name = recipeNameInput.trim()
+    if (!name || !recipeEditing.ingredients.length) return
+    const toSave = { ...recipeEditing, name }
+    setRecipes(prev => {
+      const idx = prev.findIndex(r => r.id === toSave.id)
+      if (idx >= 0) { const next = [...prev]; next[idx] = toSave; return next }
+      return [...prev, toSave]
+    })
+    setRecipeEditing(null)
+  }
+
+  function cancelRecipeEdit() { setRecipeEditing(null); setConfirmDeleteRecipe(false) }
+
+  function deleteRecipe(id) {
+    setRecipes(prev => prev.filter(r => r.id !== id))
+    setConfirmDeleteRecipe(false)
+    setRecipeEditing(null)
+    setViewingRecipe(null)
+  }
+
+  function openRecipeView(recipe) {
+    setViewingRecipe(recipe)
+    setViewingRecipeUnchecked(new Set())
+  }
+
+  function toggleRecipeIngredientChecked(key) {
+    setViewingRecipeUnchecked(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
+  }
+
+  function resolveIngredientCategory(name) {
+    const lc = name.toLowerCase()
+    const custom = getCustomProducts().find(p => p.name.toLowerCase() === lc)
+    if (custom?.category) return custom.category
+    const builtIn = products.products.find(p => p.name.toLowerCase() === lc)
+    if (builtIn) return builtIn.category
+    return 'other'
+  }
+
+  async function addRecipeIngredientsToList() {
+    if (!viewingRecipe) return
+    const toAdd = viewingRecipe.ingredients.filter((ing, i) => !viewingRecipeUnchecked.has(`${ing}-${i}`))
+    if (!toAdd.length) return
+    haptic(15)
+    for (const raw of toAdd) {
+      const { name: cleanName } = parseItemName(raw)
+      const catId = resolveIngredientCategory(cleanName)
+      const cat = allCategories.find(c => c.id === catId)
+      const id = crypto.randomUUID()
+      await doAddItem({
+        id, list_code: listCode, name: raw, category: cat?.name ?? 'Other', category_id: catId,
+        checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null,
+      })
+    }
+    addToast(`Added ${toAdd.length} item${toAdd.length !== 1 ? 's' : ''} from ${viewingRecipe.name}`)
+    setViewingRecipe(null)
+    setTab('list')
+  }
+
   // --- Item detail sheet ---
   function openDetail(item) {
     const { qty, name: baseName } = parseItemName(item.name)
@@ -1543,7 +1703,7 @@ export default function App() {
             </>
           )}
         </>
-      ) : (
+      ) : tab === 'history' ? (
         <>
           <div className="input-section">
             <input type="text" placeholder="Search history..." value={historySearch}
@@ -1576,6 +1736,121 @@ export default function App() {
             </DndContext>
           )}
         </>
+      ) : (
+        <>
+          <div className="input-section">
+            <button className="recipe-new-btn" onClick={startNewRecipe}>+ New Recipe</button>
+          </div>
+          {recipes.length === 0 ? (
+            <div className="empty-state">
+              <p>No recipes yet</p>
+              <p className="empty-hint">Save ingredients for meals you make often</p>
+            </div>
+          ) : (
+            <ul className="history-list">
+              {recipes.map(r => (
+                <SwipeRecipeItem key={r.id} recipe={r} onOpen={openRecipeView} onDelete={deleteRecipe} />
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      {/* Recipe view sheet — add ingredients to the list */}
+      {viewingRecipe && (
+        <div className="overlay" onClick={() => setViewingRecipe(null)}>
+          <BottomSheet onClose={() => setViewingRecipe(null)}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <p className="sheet-title">{viewingRecipe.name}</p>
+              <button onClick={() => setViewingRecipe(null)} className="sheet-close">✕</button>
+            </div>
+            <div className="sheet-body">
+              <button
+                className="recipe-add-all-btn"
+                disabled={viewingRecipe.ingredients.length === viewingRecipeUnchecked.size}
+                onClick={addRecipeIngredientsToList}
+              >
+                {viewingRecipeUnchecked.size === 0 ? 'Add all ingredients' : 'Add ingredients'}
+              </button>
+              <ul className="recipe-ingredient-list">
+                {viewingRecipe.ingredients.map((ing, i) => {
+                  const key = `${ing}-${i}`
+                  const checked = !viewingRecipeUnchecked.has(key)
+                  return (
+                    <li key={key} className="recipe-ingredient-row" onClick={() => toggleRecipeIngredientChecked(key)}>
+                      <button className={`check-btn${checked ? ' checked-btn' : ''}`} onClick={e => { e.stopPropagation(); toggleRecipeIngredientChecked(key) }}>
+                        <span className="checkmark">{checked ? '✓' : ''}</span>
+                      </button>
+                      <span className="recipe-ingredient-name">{ing}</span>
+                    </li>
+                  )
+                })}
+              </ul>
+              <button className="recipe-edit-btn" onClick={() => startEditRecipe(viewingRecipe)}>Edit recipe</button>
+            </div>
+          </BottomSheet>
+        </div>
+      )}
+
+      {/* Recipe create / edit sheet */}
+      {recipeEditing && (
+        <div className="overlay">
+          <BottomSheet onClose={cancelRecipeEdit} noSwipe>
+            <div className="sheet-header">
+              <p className="sheet-title">{recipes.some(r => r.id === recipeEditing.id) ? 'Edit Recipe' : 'New Recipe'}</p>
+              <button onClick={cancelRecipeEdit} className="sheet-close">✕</button>
+            </div>
+            <div className="sheet-body">
+              <div className="detail-card">
+                <div className="detail-field">
+                  <input
+                    type="text" value={recipeNameInput} onChange={e => setRecipeNameInput(e.target.value)}
+                    className="detail-name-input" placeholder="Recipe name" autoComplete="off" autoFocus
+                  />
+                </div>
+              </div>
+              <div className="recipe-ingredient-add-row">
+                <input
+                  type="text" placeholder="Add ingredient..." value={recipeIngredientInput}
+                  onChange={e => setRecipeIngredientInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addRecipeIngredient() } }}
+                  className="item-input" autoComplete="off"
+                />
+                <button className="recipe-ingredient-add-btn" onClick={addRecipeIngredient} disabled={!recipeIngredientInput.trim()}>Add</button>
+              </div>
+              {recipeEditing.ingredients.length > 0 && (
+                <ul className="recipe-ingredient-list">
+                  {recipeEditing.ingredients.map((ing, i) => (
+                    <li key={i} className="recipe-ingredient-row">
+                      <span className="recipe-ingredient-name">{ing}</span>
+                      <button className="recipe-ingredient-remove-btn" onClick={() => removeRecipeIngredient(i)}>✕</button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <div className="item-edit-actions">
+                <button className="settings-item-save-btn" onClick={saveRecipe} disabled={!recipeNameInput.trim() || !recipeEditing.ingredients.length}>
+                  Save recipe
+                </button>
+                {recipes.some(r => r.id === recipeEditing.id) && (
+                  confirmDeleteRecipe ? (
+                    <div className="confirm-row" style={{ margin: 0 }}>
+                      <span className="confirm-label">Delete this recipe?</span>
+                      <button className="confirm-cancel-btn" onClick={() => setConfirmDeleteRecipe(false)}>No</button>
+                      <button className="confirm-ok-btn" onClick={() => deleteRecipe(recipeEditing.id)}>Yes</button>
+                    </div>
+                  ) : (
+                    <button className="item-edit-delete-btn" onClick={() => setConfirmDeleteRecipe(true)}>
+                      Delete recipe
+                    </button>
+                  )
+                )}
+                <button className="item-edit-cancel-btn" onClick={cancelRecipeEdit}>Cancel</button>
+              </div>
+            </div>
+          </BottomSheet>
+        </div>
       )}
 
       {/* Item detail sheet */}
@@ -2072,6 +2347,10 @@ export default function App() {
         <button className={`tab-btn${tab === 'history' ? ' active' : ''}`} onClick={() => setTab('history')}>
           <span className="tab-icon">🕐</span>
           <span className="tab-label">History</span>
+        </button>
+        <button className={`tab-btn${tab === 'recipes' ? ' active' : ''}`} onClick={() => setTab('recipes')}>
+          <span className="tab-icon">📖</span>
+          <span className="tab-label">Recipes</span>
         </button>
       </nav>
 

@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.6'
+const VERSION = '2.15.7'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -200,6 +200,23 @@ function tryMergeQty(existingRawName, incomingRawName) {
   const total = a.amount + b.amount
   const qtyStr = a.unit === 'x' ? `${total}x` : `${Math.round(total * 100) / 100}${a.unit}`
   return `${qtyStr} ${baseName}`
+}
+
+function mergeOrBumpQty(existingRawName, incomingRawName) {
+  const merged = tryMergeQty(existingRawName, incomingRawName)
+  if (merged) return merged
+  const { qty: existingQty, name: baseName } = parseItemName(existingRawName)
+  const a = parseQtyAmount(existingQty) || { amount: 1, unit: 'x' }
+  const total = a.amount + 1
+  const qtyStr = a.unit === 'x' ? `${total}x` : `${Math.round(total * 100) / 100}${a.unit}`
+  return `${qtyStr} ${baseName}`
+}
+
+function mergeAddedBy(existingAddedBy, incomingName) {
+  if (!incomingName) return existingAddedBy || null
+  const names = (existingAddedBy || '').split(',').map(s => s.trim()).filter(Boolean)
+  if (!names.includes(incomingName)) names.push(incomingName)
+  return names.join(', ')
 }
 
 function haptic(pattern = 10) { try { navigator.vibrate?.(pattern) } catch {} }
@@ -696,6 +713,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pickerItem, setPickerItem] = useState(null)
   const [pendingItemData, setPendingItemData] = useState(null)
+  const [duplicateConfirm, setDuplicateConfirm] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
   const [detailName, setDetailName] = useState('')
   const [detailQty, setDetailQty] = useState(1)
@@ -1278,6 +1296,34 @@ export default function App() {
     } else enqueue({ type: 'INSERT', data: newItem })
   }
 
+  function confirmDuplicate(existing) {
+    return new Promise(resolve => setDuplicateConfirm({ existing, resolve }))
+  }
+
+  function resolveDuplicateConfirm(result) {
+    duplicateConfirm?.resolve(result)
+    setDuplicateConfirm(null)
+  }
+
+  async function commitAddItem(newItem) {
+    const { name: cleanName } = parseItemName(newItem.name)
+    const existing = itemsRef.current.find(i => !i.checked && parseItemName(i.name).name.toLowerCase() === cleanName.toLowerCase())
+    if (existing) {
+      const proceed = await confirmDuplicate(existing)
+      if (!proceed) return false
+      const update = {
+        name: mergeOrBumpQty(existing.name, newItem.name),
+        added_by: mergeAddedBy(existing.added_by, newItem.added_by),
+      }
+      setItems(prev => { const next = prev.map(i => i.id === existing.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
+      if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', existing.id); notifyChange() }
+      else enqueue({ type: 'UPDATE', id: existing.id, data: update })
+      return true
+    }
+    await doAddItem(newItem)
+    return true
+  }
+
   async function addItem(product) {
     haptic(15)
     const id = crypto.randomUUID()
@@ -1300,7 +1346,7 @@ export default function App() {
     } else {
       setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     }
-    await doAddItem(newItem)
+    await commitAddItem(newItem)
   }
 
   async function addCustomItem(rawName) {
@@ -1317,7 +1363,7 @@ export default function App() {
     const cat = allCategories.find(c => c.id === learned.category)
     const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: learned.category, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
-    await doAddItem(newItem)
+    await commitAddItem(newItem)
   }
 
   async function addFromHistory(histItem) {
@@ -1328,7 +1374,7 @@ export default function App() {
       return
     }
     const cat = allCategories.find(c => c.id === histItem.category_id)
-    await doAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: histItem.category_id, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
+    await commitAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: histItem.category_id, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
   }
 
   async function confirmItemCategory(catId) {
@@ -1338,14 +1384,14 @@ export default function App() {
     const { name: cleanName } = parseItemName(newItem.name)
     upsertCustomProduct(cleanName, catId)
     setPendingItemData(null)
-    await doAddItem(newItem)
+    await commitAddItem(newItem)
   }
 
   async function addPendingUncategorised() {
     if (!pendingItemData) return
     const newItem = pendingItemData
     setPendingItemData(null)
-    await doAddItem(newItem)
+    await commitAddItem(newItem)
   }
 
   async function toggleItem(id, checked) {
@@ -1709,52 +1755,21 @@ export default function App() {
     if (!toAdd.length) return
     haptic(15)
 
-    const working = [...itemsRef.current]
-    const updates = []
-    const inserts = []
-
+    let addedCount = 0
     for (const raw of toAdd) {
       const { name: cleanName } = parseItemName(raw)
-      const existingIdx = working.findIndex(i => !i.checked && parseItemName(i.name).name.toLowerCase() === cleanName.toLowerCase())
-      const merged = existingIdx >= 0 ? tryMergeQty(working[existingIdx].name, raw) : null
-      if (merged) {
-        working[existingIdx] = { ...working[existingIdx], name: merged }
-        const existingUpdate = updates.find(u => u.id === working[existingIdx].id)
-        if (existingUpdate) existingUpdate.name = merged
-        else updates.push({ id: working[existingIdx].id, name: merged })
-        continue
-      }
       const catId = resolveIngredientCategory(cleanName)
       const cat = allCategories.find(c => c.id === catId)
       const newItem = {
         id: crypto.randomUUID(), list_code: listCode, name: raw, category: cat?.name ?? 'Other', category_id: catId,
         checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null,
       }
-      working.push(newItem)
-      inserts.push(newItem)
+      const added = await commitAddItem(newItem)
+      if (added) addedCount++
     }
 
-    setItems(working)
-    setCachedItems(listCode, working)
-    inserts.forEach(item => { locallyAddedIdsRef.current.add(item.id); markEntering(item.id) })
-
-    if (navigator.onLine) {
-      for (const u of updates) await supabase.from('list_items').update({ name: u.name }).eq('id', u.id)
-      for (const item of inserts) {
-        const { error } = await supabase.from('list_items').upsert(item, { onConflict: 'id' })
-        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
-          const { added_by, checked_by, ...base } = item
-          await supabase.from('list_items').upsert(base, { onConflict: 'id' })
-        }
-      }
-      notifyChange()
-    } else {
-      updates.forEach(u => enqueue({ type: 'UPDATE', id: u.id, data: { name: u.name } }))
-      inserts.forEach(item => enqueue({ type: 'INSERT', data: item }))
-    }
-
-    const total = updates.length + inserts.length
-    addToast(`Added ${total} item${total !== 1 ? 's' : ''} from ${viewingRecipe.name}`)
+    if (addedCount === 0) return
+    addToast(`Added ${addedCount} item${addedCount !== 1 ? 's' : ''} from ${viewingRecipe.name}`)
     setViewingRecipe(null)
     setTab('list')
   }
@@ -2770,6 +2785,25 @@ export default function App() {
           <span className="tab-label">Recipes</span>
         </button>
       </nav>
+
+      {/* Duplicate item confirm */}
+      {duplicateConfirm && (() => {
+        const { name: existingName, qty: existingQty } = parseItemName(duplicateConfirm.existing.name)
+        return (
+          <div className="overlay dup-confirm-overlay" onClick={() => resolveDuplicateConfirm(false)}>
+            <div className="dup-confirm-card" onClick={e => e.stopPropagation()}>
+              <p className="dup-confirm-title">Already on the list</p>
+              <p className="dup-confirm-sub">
+                {existingName}{existingQty ? ` (${existingQty})` : ''} is already on your list. Add another?
+              </p>
+              <div className="dup-confirm-actions">
+                <button className="dup-confirm-no" onClick={() => resolveDuplicateConfirm(false)}>No</button>
+                <button className="dup-confirm-yes" onClick={() => resolveDuplicateConfirm(true)}>Yes</button>
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Name prompt */}
       {showNamePrompt && (

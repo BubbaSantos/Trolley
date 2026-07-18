@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.9'
+const VERSION = '2.15.10'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -98,6 +98,17 @@ function BookIcon() {
     <svg className="tab-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
       <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+  )
+}
+
+function SortIcon() {
+  return (
+    <svg className="sort-svg-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="4" width="7" height="7" rx="1.5" />
+      <rect x="14" y="4" width="7" height="7" rx="1.5" />
+      <rect x="3" y="15" width="7" height="5" rx="1.5" />
+      <rect x="14" y="15" width="7" height="5" rx="1.5" />
     </svg>
   )
 }
@@ -745,7 +756,6 @@ export default function App() {
   const [suggestions, setSuggestions] = useState([])
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [pickerItem, setPickerItem] = useState(null)
-  const [pendingItemData, setPendingItemData] = useState(null)
   const [duplicateConfirm, setDuplicateConfirm] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
   const [detailName, setDetailName] = useState('')
@@ -753,6 +763,9 @@ export default function App() {
   const [detailQtyText, setDetailQtyText] = useState('')
   const [detailQtyIsText, setDetailQtyIsText] = useState(false)
   const [categoryOrder, setCategoryOrder] = useState(loadCategoryOrder)
+  const [sortByCategory, setSortByCategory] = useState(() => {
+    try { return localStorage.getItem('trolley_sort_by_category') !== 'false' } catch { return true }
+  })
   const [customCategories, setCustomCategories] = useState(getCustomCategories)
   const [tab, setTab] = useState('list')
   const [historySearch, setHistorySearch] = useState('')
@@ -870,6 +883,7 @@ export default function App() {
   }, [])
 
   useEffect(() => { localStorage.setItem('trolley_cat_order', JSON.stringify(categoryOrder)) }, [categoryOrder])
+  useEffect(() => { localStorage.setItem('trolley_sort_by_category', String(sortByCategory)) }, [sortByCategory])
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
   useEffect(() => { const t = setTimeout(() => setShowVersion(false), 2000); return () => clearTimeout(t) }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
@@ -1364,11 +1378,6 @@ export default function App() {
     const id = crypto.randomUUID()
     const storedName = inputQty ? `${inputQty} ${product.name}` : product.name
     const catId = product.category || 'other'
-    if (catId === 'other') {
-      setPendingItemData({ id, list_code: listCode, name: storedName, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
-      setInput(''); setInputQty(null); setSuggestions([])
-      return
-    }
     const cat = allCategories.find(c => c.id === catId)
     const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     if (product.fromHistory) {
@@ -1390,13 +1399,9 @@ export default function App() {
     const storedName = qty ? `${qty} ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)}` : rawName
     const learned = getCustomProducts().find(p => p.name.toLowerCase() === cleanName.toLowerCase() && p.category && p.category !== 'other')
     const id = crypto.randomUUID()
-    if (!learned) {
-      setPendingItemData({ id, list_code: listCode, name: storedName, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
-      setInput(''); setInputQty(null); setSuggestions([])
-      return
-    }
-    const cat = allCategories.find(c => c.id === learned.category)
-    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: learned.category, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
+    const catId = learned ? learned.category : 'other'
+    const cat = allCategories.find(c => c.id === catId)
+    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     await commitAddItem(newItem)
   }
@@ -1404,29 +1409,9 @@ export default function App() {
   async function addFromHistory(histItem) {
     haptic(15)
     const id = crypto.randomUUID()
-    if (!histItem.category_id || histItem.category_id === 'other') {
-      setPendingItemData({ id, list_code: listCode, name: histItem.name, category: 'Other', category_id: 'other', checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
-      return
-    }
-    const cat = allCategories.find(c => c.id === histItem.category_id)
-    await commitAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: histItem.category_id, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
-  }
-
-  async function confirmItemCategory(catId) {
-    if (!pendingItemData) return
+    const catId = histItem.category_id || 'other'
     const cat = allCategories.find(c => c.id === catId)
-    const newItem = { ...pendingItemData, category: cat?.name ?? 'Other', category_id: catId }
-    const { name: cleanName } = parseItemName(newItem.name)
-    upsertCustomProduct(cleanName, catId)
-    setPendingItemData(null)
-    await commitAddItem(newItem)
-  }
-
-  async function addPendingUncategorised() {
-    if (!pendingItemData) return
-    const newItem = pendingItemData
-    setPendingItemData(null)
-    await commitAddItem(newItem)
+    await commitAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
   }
 
   async function toggleItem(id, checked) {
@@ -1928,8 +1913,16 @@ export default function App() {
     setNewCatName(''); setNewCatIcon(''); setNewCatColor(PRESET_COLORS[5]); setAddingCategory(false)
   }
 
-  const orderedCats = categoryOrder.map(id => getCat(id)).filter(Boolean)
+  const orderedCatsAll = categoryOrder.map(id => getCat(id)).filter(Boolean)
+  const knownCatIds = new Set(orderedCatsAll.map(c => c.id))
+  const orderedCats = orderedCatsAll.filter(c => c.id !== 'other')
+  const otherCat = orderedCatsAll.find(c => c.id === 'other') || { id: 'other', name: 'Other', icon: '🛍️', color: '#94a3b8' }
   const grouped = orderedCats.map(cat => ({ category: cat, items: items.filter(i => i.category_id === cat.id && !i.checked) })).filter(g => g.items.length > 0)
+  const uncategorisedItems = items.filter(i => !i.checked && (!knownCatIds.has(i.category_id) || i.category_id === 'other'))
+  if (uncategorisedItems.length > 0) {
+    grouped.unshift({ category: otherCat, items: uncategorisedItems })
+  }
+  const flatItems = items.filter(i => !i.checked)
   const checkedCount = items.filter(i => i.checked).length
   const checkedSorted = items.filter(i => i.checked).sort((a, b) => (b.checked_at || 0) - (a.checked_at || 0))
   const filteredHistory = history
@@ -2066,11 +2059,21 @@ export default function App() {
           </div>
 
           {items.length > 0 && (
-            <p className="list-counter">
-              {checkedCount > 0
-                ? `${checkedCount}/${items.length} items`
-                : `${items.length} item${items.length !== 1 ? 's' : ''}`}
-            </p>
+            <div className="list-toolbar">
+              <p className="list-counter">
+                {checkedCount > 0
+                  ? `${checkedCount}/${items.length} items`
+                  : `${items.length} item${items.length !== 1 ? 's' : ''}`}
+              </p>
+              <button
+                className={`sort-toggle-btn${sortByCategory ? ' active' : ''}`}
+                onClick={() => setSortByCategory(v => !v)}
+                aria-label="Sort into categories"
+                aria-pressed={sortByCategory}
+              >
+                <SortIcon />
+              </button>
+            </div>
           )}
 
           {items.length === 0 ? (
@@ -2081,16 +2084,20 @@ export default function App() {
           ) : (
             <>
               <div className="items-container">
-                {grouped.map(({ category, items: catItems }) => (
-                  <section key={category.id} className="category-section" style={{ '--cat-color': category.color }}>
-                    <h2 className="category-heading">
-                      <span className="cat-icon">{category.icon}</span>
-                      {category.name}
-                      <span className="cat-count">{catItems.length}</span>
-                    </h2>
-                    <ul>{catItems.map(renderItem)}</ul>
-                  </section>
-                ))}
+                {sortByCategory ? (
+                  grouped.map(({ category, items: catItems }) => (
+                    <section key={category.id} className="category-section" style={{ '--cat-color': category.color }}>
+                      <h2 className="category-heading">
+                        <span className="cat-icon">{category.icon}</span>
+                        {category.name}
+                        <span className="cat-count">{catItems.length}</span>
+                      </h2>
+                      <ul>{catItems.map(renderItem)}</ul>
+                    </section>
+                  ))
+                ) : (
+                  <ul className="flat-list">{flatItems.map(renderItem)}</ul>
+                )}
               </div>
               {checkedCount > 0 && (
                 <>
@@ -2485,35 +2492,6 @@ export default function App() {
                   {pickerItem.category_id === cat.id && <span className="cat-option-check">✓</span>}
                 </button>
               ))}
-            </div>
-          </BottomSheet>
-        </div>
-      )}
-
-      {/* Categorise prompt for new uncategorised items */}
-      {pendingItemData && (
-        <div className="overlay" onClick={() => setPendingItemData(null)}>
-          <BottomSheet onClose={() => setPendingItemData(null)}>
-            <div className="sheet-handle" />
-            <div className="sheet-header">
-              <div>
-                <p className="sheet-label">What category is this?</p>
-                <p className="sheet-title">{pendingItemData.name}</p>
-              </div>
-              <button onClick={() => setPendingItemData(null)} className="sheet-close">✕</button>
-            </div>
-            <div className="sheet-body">
-              {allCategories.map(cat => (
-                <button key={cat.id} className="cat-option" onClick={() => confirmItemCategory(cat.id)}>
-                  <span className="cat-option-icon">{cat.icon}</span>
-                  <span className="cat-option-name">{cat.name}</span>
-                </button>
-              ))}
-              <div style={{ padding: '0.75rem 1.25rem' }}>
-                <button className="skip-btn" onClick={addPendingUncategorised}>
-                  Skip — add without category
-                </button>
-              </div>
             </div>
           </BottomSheet>
         </div>

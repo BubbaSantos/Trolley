@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.11'
+const VERSION = '2.15.10'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -181,7 +181,7 @@ function getMergedProductList() {
     }))
   const customOnly = custom
     .filter(p => !builtInNames.has(p.name.toLowerCase()) && !hidden.includes(p.name.toLowerCase()))
-    .map(p => ({ name: p.name, category_id: p.category || null, isBuiltIn: false }))
+    .map(p => ({ name: p.name, category_id: p.category || 'other', isBuiltIn: false }))
   return [...builtIns, ...customOnly].sort((a, b) => a.name.localeCompare(b.name))
 }
 
@@ -972,7 +972,7 @@ export default function App() {
   function openItemEdit(entry) {
     setSettingsEditItem(entry)
     setSettingsEditName(entry.name)
-    setSettingsEditCatId(entry.category_id || null)
+    setSettingsEditCatId(entry.category_id || 'other')
     setConfirmDeleteItem(false)
     setSettingsView('item-edit')
   }
@@ -1028,7 +1028,7 @@ export default function App() {
     const affectedItems = items.filter(i => parseItemName(i.name).name.toLowerCase() === oldName.toLowerCase())
     for (const item of affectedItems) {
       const { qty } = parseItemName(item.name)
-      const update = { name: qty ? `${qty} ${newName}` : newName, category: cat?.name ?? null, category_id: newCatId }
+      const update = { name: qty ? `${qty} ${newName}` : newName, category: cat?.name ?? 'Other', category_id: newCatId }
       setItems(prev => { const next = prev.map(i => i.id === item.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
       if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', item.id)
       else enqueue({ type: 'UPDATE', id: item.id, data: update })
@@ -1097,7 +1097,7 @@ export default function App() {
     const entry = {
       list_code: listCode,
       name: current?.name || cleanName,
-      category_id: current?.category_id || null,
+      category_id: current?.category_id || 'other',
       count: current?.count || 0,
       last_used: current?.last_used || new Date().toISOString(),
       is_favourite: isFav,
@@ -1270,7 +1270,7 @@ export default function App() {
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
-        return { name: h.name, category: learned?.category || h.category_id || null, fromHistory: true, count: h.count || 1 }
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
       })
     if (histSugs.length >= 5) return histSugs
     const alreadyShown = new Set([...onList, ...histSugs.map(s => s.name.toLowerCase())])
@@ -1310,7 +1310,7 @@ export default function App() {
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
-        return { name: h.name, category: learned?.category || h.category_id || null, fromHistory: true, count: h.count || 1 }
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
       })
     const historyNames = new Set(historyMatches.map(h => h.name.toLowerCase()))
     const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search) && !historyNames.has(p.name.toLowerCase()))
@@ -1377,9 +1377,9 @@ export default function App() {
     haptic(15)
     const id = crypto.randomUUID()
     const storedName = inputQty ? `${inputQty} ${product.name}` : product.name
-    const catId = product.category || null
+    const catId = product.category || 'other'
     const cat = allCategories.find(c => c.id === catId)
-    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? null, category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
+    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     if (product.fromHistory) {
       keepSuggestionsRef.current = true
       const refreshed = getHistorySuggestions([product.name])
@@ -1399,9 +1399,9 @@ export default function App() {
     const storedName = qty ? `${qty} ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)}` : rawName
     const learned = getCustomProducts().find(p => p.name.toLowerCase() === cleanName.toLowerCase() && p.category && p.category !== 'other')
     const id = crypto.randomUUID()
-    const catId = learned ? learned.category : null
+    const catId = learned ? learned.category : 'other'
     const cat = allCategories.find(c => c.id === catId)
-    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? null, category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
+    const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     await commitAddItem(newItem)
   }
@@ -1409,9 +1409,9 @@ export default function App() {
   async function addFromHistory(histItem) {
     haptic(15)
     const id = crypto.randomUUID()
-    const catId = histItem.category_id || null
+    const catId = histItem.category_id || 'other'
     const cat = allCategories.find(c => c.id === catId)
-    await commitAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? null, category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
+    await commitAddItem({ id, list_code: listCode, name: histItem.name, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null })
   }
 
   async function toggleItem(id, checked) {
@@ -1484,8 +1484,8 @@ export default function App() {
   }
 
   async function changeCategory(itemId, newCatId) {
-    const cat = newCatId ? allCategories.find(c => c.id === newCatId) : null
-    const update = { category: cat?.name ?? null, category_id: newCatId }
+    const cat = allCategories.find(c => c.id === newCatId)
+    const update = { category: cat.name, category_id: newCatId }
     const item = items.find(i => i.id === itemId)
     if (item) upsertCustomProduct(item.name, newCatId)
     setItems(prev => { const next = prev.map(i => i.id === itemId ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
@@ -1577,7 +1577,7 @@ export default function App() {
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
-        return { name: h.name, category: learned?.category || h.category_id || null, fromHistory: true, count: h.count || 1 }
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
       })
     if (histSugs.length >= 5) return histSugs
     const alreadyShown = new Set([...exclude, ...histSugs.map(s => s.name.toLowerCase())])
@@ -1613,7 +1613,7 @@ export default function App() {
       .slice(0, 5)
       .map(h => {
         const learned = getCustomProducts().find(p => p.name.toLowerCase() === h.name.toLowerCase())
-        return { name: h.name, category: learned?.category || h.category_id || null, fromHistory: true, count: h.count || 1 }
+        return { name: h.name, category: learned?.category || h.category_id || 'other', fromHistory: true, count: h.count || 1 }
       })
     const historyNames = new Set(historyMatches.map(h => h.name.toLowerCase()))
     const customMatches = getCustomProducts().filter(p => p.name.toLowerCase().includes(search) && !historyNames.has(p.name.toLowerCase()) && !exclude.has(p.name.toLowerCase()))
@@ -1634,7 +1634,7 @@ export default function App() {
     setRecipeIngredientInput('')
     setRecipeIngredientQty(null)
     setRecipeSuggestions([])
-    if (!resolveIngredientCategory(cleanName)) {
+    if (resolveIngredientCategory(cleanName) === 'other') {
       setPendingRecipeIngredient(storedName)
       return
     }
@@ -1646,8 +1646,8 @@ export default function App() {
     setRecipeIngredientInput('')
     setRecipeIngredientQty(null)
     setRecipeSuggestions([])
-    const catId = product.category || null
-    if (!catId) {
+    const catId = product.category || 'other'
+    if (catId === 'other') {
       setPendingRecipeIngredient(storedName)
       return
     }
@@ -1801,7 +1801,7 @@ export default function App() {
     if (custom?.category) return custom.category
     const builtIn = products.products.find(p => p.name.toLowerCase() === lc)
     if (builtIn) return builtIn.category
-    return null
+    return 'other'
   }
 
   async function addRecipeIngredientsToList() {
@@ -1816,7 +1816,7 @@ export default function App() {
       const catId = resolveIngredientCategory(cleanName)
       const cat = allCategories.find(c => c.id === catId)
       const newItem = {
-        id: crypto.randomUUID(), list_code: listCode, name: raw, category: cat?.name ?? null, category_id: catId,
+        id: crypto.randomUUID(), list_code: listCode, name: raw, category: cat?.name ?? 'Other', category_id: catId,
         checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null,
       }
       const added = await commitAddItem(newItem)
@@ -2043,7 +2043,7 @@ export default function App() {
                         {p.name}
                       </span>
                       <span className="suggestion-cat">
-                        {getCat(p.category)?.icon ?? '🚫'} {getCat(p.category)?.name ?? 'No category'}
+                        {getCat(p.category)?.icon ?? '🛍️'} {getCat(p.category)?.name ?? 'Other'}
                       </span>
                     </button>
                   )
@@ -2136,7 +2136,7 @@ export default function App() {
               {displayHistory.map(h => {
                 const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
                 return <SwipeHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
-                  onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || null, checked: false, _fromHistory: true })} />
+                  onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
               })}
             </ul>
           ) : (
@@ -2146,7 +2146,7 @@ export default function App() {
                   {displayHistory.map(h => {
                     const onList = items.some(i => parseItemName(i.name).name.toLowerCase() === h.name.toLowerCase() && !i.checked)
                     return <SortableHistoryItem key={h.name} h={h} onAdd={addFromHistory} onDelete={deleteHistoryItem} onList={onList}
-                      onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || null, checked: false, _fromHistory: true })} />
+                      onInfo={histItem => openDetail({ id: null, name: histItem.name, category_id: histItem.category_id || 'other', checked: false, _fromHistory: true })} />
                   })}
                 </ul>
               </SortableContext>
@@ -2260,7 +2260,7 @@ export default function App() {
                           {p.name}
                         </span>
                         <span className="suggestion-cat">
-                          {getCat(p.category)?.icon ?? '🚫'} {getCat(p.category)?.name ?? 'No category'}
+                          {getCat(p.category)?.icon ?? '🛍️'} {getCat(p.category)?.name ?? 'Other'}
                         </span>
                       </button>
                     ))}
@@ -2355,8 +2355,8 @@ export default function App() {
                     <button className="detail-cat-row" onClick={openRecipeIngredientCategoryPicker}>
                       <span className="detail-cat-label">Category</span>
                       <span className="detail-cat-value">
-                        {getCat(catId)?.icon ?? '🚫'}
-                        {getCat(catId)?.name ?? 'No category'}
+                        {getCat(catId)?.icon ?? '🛍️'}
+                        {getCat(catId)?.name ?? 'Other'}
                       </span>
                       <span className="detail-cat-arrow">›</span>
                     </button>
@@ -2423,16 +2423,16 @@ export default function App() {
                 <div className="detail-cat-row detail-stat-row" style={{ cursor: 'default' }}>
                   <span className="detail-cat-label">Category</span>
                   <span className="detail-cat-value">
-                    {getCat(detailItem.category_id)?.icon ?? '🚫'}
-                    {getCat(detailItem.category_id)?.name ?? 'No category'}
+                    {getCat(detailItem.category_id)?.icon ?? '🛍️'}
+                    {getCat(detailItem.category_id)?.name ?? 'Other'}
                   </span>
                 </div>
               ) : (
                 <button className="detail-cat-row" onClick={openDetailCategoryPicker}>
                   <span className="detail-cat-label">Category</span>
                   <span className="detail-cat-value">
-                    {getCat(detailItem.category_id)?.icon ?? '🚫'}
-                    {getCat(detailItem.category_id)?.name ?? 'No category'}
+                    {getCat(detailItem.category_id)?.icon ?? '🛍️'}
+                    {getCat(detailItem.category_id)?.name ?? 'Other'}
                   </span>
                   <span className="detail-cat-arrow">›</span>
                 </button>
@@ -2484,12 +2484,6 @@ export default function App() {
               <button onClick={() => setPickerItem(null)} className="sheet-close">✕</button>
             </div>
             <div className="sheet-body">
-              <button className={`cat-option${!pickerItem.category_id ? ' active' : ''}`}
-                onClick={() => pickerItem._forRecipeIngredient ? changeRecipeIngredientCategory(null) : changeCategory(pickerItem.id, null)}>
-                <span className="cat-option-icon">🚫</span>
-                <span className="cat-option-name">No category</span>
-                {!pickerItem.category_id && <span className="cat-option-check">✓</span>}
-              </button>
               {allCategories.map(cat => (
                 <button key={cat.id} className={`cat-option${pickerItem.category_id === cat.id ? ' active' : ''}`}
                   onClick={() => pickerItem._forRecipeIngredient ? changeRecipeIngredientCategory(cat.id) : changeCategory(pickerItem.id, cat.id)}>
@@ -2630,7 +2624,7 @@ export default function App() {
                         {settingsItemSearch.trim() && (
                           <button
                             className="settings-item-add-new-btn"
-                            onClick={() => openItemEdit({ name: settingsItemSearch.trim(), category_id: null, isBuiltIn: false })}
+                            onClick={() => openItemEdit({ name: settingsItemSearch.trim(), category_id: 'other', isBuiltIn: false })}
                           >
                             + Add &ldquo;{settingsItemSearch.trim()}&rdquo;
                           </button>
@@ -2645,7 +2639,7 @@ export default function App() {
                               {entry.name}
                               {entry.is_favourite && <span className="settings-item-fav">★</span>}
                             </span>
-                            <span className="settings-item-cat-label">{getCat(entry.category_id)?.icon ?? '🚫'} {getCat(entry.category_id)?.name ?? 'No category'}</span>
+                            <span className="settings-item-cat-label">{getCat(entry.category_id)?.icon ?? '🛍️'} {getCat(entry.category_id)?.name ?? 'Other'}</span>
                             <span className="settings-item-chevron">›</span>
                           </li>
                         ))}
@@ -2676,14 +2670,6 @@ export default function App() {
                     <p className="settings-item-edit-label" style={{ padding: '0.75rem 1.25rem 0.5rem' }}>Category</p>
                     <div className="settings-item-cat-list-wrap">
                       <div className="settings-item-cat-list">
-                        <button
-                          className={`settings-item-cat-option${!settingsEditCatId ? ' active' : ''}`}
-                          onClick={() => setSettingsEditCatId(null)}
-                        >
-                          <span>🚫</span>
-                          <span className="settings-item-cat-option-name">No category</span>
-                          {!settingsEditCatId && <span className="settings-item-cat-check">✓</span>}
-                        </button>
                         {allCategories.map(cat => (
                           <button
                             key={cat.id}

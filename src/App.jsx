@@ -230,6 +230,18 @@ function parseQtyAmount(qty) {
   return null
 }
 
+// Parses free-typed quantity text like "3", "200g", "1.5kg" into a stored qty prefix ("3x", "200g", "1.5kg").
+// Returns null if the text doesn't parse as a recognised quantity.
+function parseQtyInput(raw) {
+  const s = (raw || '').trim()
+  if (!s) return null
+  let m = s.match(/^(\d+(?:\.\d+)?)\s*(kg|g|ml|l|lbs?|oz)$/i)
+  if (m) return `${m[1]}${m[2].toLowerCase()}`
+  m = s.match(/^(\d+(?:\.\d+)?)x?$/i)
+  if (m) return `${Math.max(1, Math.round(parseFloat(m[1])))}x`
+  return null
+}
+
 function tryMergeQty(existingRawName, incomingRawName) {
   const { qty: existingQty, name: baseName } = parseItemName(existingRawName)
   const { qty: incomingQty } = parseItemName(incomingRawName)
@@ -759,9 +771,8 @@ export default function App() {
   const [duplicateConfirm, setDuplicateConfirm] = useState(null)
   const [detailItem, setDetailItem] = useState(null)
   const [detailName, setDetailName] = useState('')
-  const [detailQty, setDetailQty] = useState(1)
-  const [detailQtyText, setDetailQtyText] = useState('')
-  const [detailQtyIsText, setDetailQtyIsText] = useState(false)
+  const [detailQtyInput, setDetailQtyInput] = useState('1')
+  const [addCategoryPicker, setAddCategoryPicker] = useState(null)
   const [categoryOrder, setCategoryOrder] = useState(loadCategoryOrder)
   const [sortByCategory, setSortByCategory] = useState(() => {
     try { return localStorage.getItem('trolley_sort_by_category') !== 'false' } catch { return true }
@@ -782,9 +793,7 @@ export default function App() {
   const [recipeSuggestions, setRecipeSuggestions] = useState([])
   const [recipeIngredientDetailIndex, setRecipeIngredientDetailIndex] = useState(null)
   const [recipeIngredientDetailName, setRecipeIngredientDetailName] = useState('')
-  const [recipeIngredientDetailQty, setRecipeIngredientDetailQty] = useState(1)
-  const [recipeIngredientDetailQtyText, setRecipeIngredientDetailQtyText] = useState('')
-  const [recipeIngredientDetailQtyIsText, setRecipeIngredientDetailQtyIsText] = useState(false)
+  const [recipeIngredientDetailQtyInput, setRecipeIngredientDetailQtyInput] = useState('1')
   const [pendingRecipeIngredient, setPendingRecipeIngredient] = useState(null)
   const [viewingRecipe, setViewingRecipe] = useState(null)
   const [viewingRecipeUnchecked, setViewingRecipeUnchecked] = useState(() => new Set())
@@ -1373,12 +1382,13 @@ export default function App() {
     return true
   }
 
-  async function addItem(product) {
+  async function addItem(product, catIdOverride) {
     haptic(15)
     const id = crypto.randomUUID()
     const storedName = inputQty ? `${inputQty} ${product.name}` : product.name
-    const catId = product.category || 'other'
+    const catId = catIdOverride || product.category || 'other'
     const cat = allCategories.find(c => c.id === catId)
+    if (catIdOverride) upsertCustomProduct(product.name, catId)
     const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     if (product.fromHistory) {
       keepSuggestionsRef.current = true
@@ -1393,14 +1403,15 @@ export default function App() {
     await commitAddItem(newItem)
   }
 
-  async function addCustomItem(rawName) {
+  async function addCustomItem(rawName, catIdOverride) {
     haptic(15)
     const { qty, name: cleanName } = parseInputQty(rawName)
     const storedName = qty ? `${qty} ${cleanName.charAt(0).toUpperCase() + cleanName.slice(1)}` : rawName
     const learned = getCustomProducts().find(p => p.name.toLowerCase() === cleanName.toLowerCase() && p.category && p.category !== 'other')
     const id = crypto.randomUUID()
-    const catId = learned ? learned.category : 'other'
+    const catId = catIdOverride || (learned ? learned.category : 'other')
     const cat = allCategories.find(c => c.id === catId)
+    if (catIdOverride) upsertCustomProduct(cleanName, catId)
     const newItem = { id, list_code: listCode, name: storedName, category: cat?.name ?? 'Other', category_id: catId, checked: false, created_at: new Date().toISOString(), added_by: userNameRef.current || null }
     setInput(''); setInputQty(null); setSuggestions([]); inputRef.current?.focus()
     await commitAddItem(newItem)
@@ -1492,6 +1503,14 @@ export default function App() {
     setPickerItem(null)
     if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', itemId); notifyChange() }
     else enqueue({ type: 'UPDATE', id: itemId, data: update })
+  }
+
+  async function chooseAddCategory(catId) {
+    const picker = addCategoryPicker
+    setAddCategoryPicker(null)
+    if (!picker) return
+    if (picker.kind === 'product') await addItem(picker.product, catId)
+    else await addCustomItem(picker.rawName, catId)
   }
 
   function leaveList() {
@@ -1684,24 +1703,17 @@ export default function App() {
   function openRecipeIngredientDetail(idx) {
     const raw = recipeEditing.ingredients[idx]
     const { qty, name: baseName } = parseItemName(raw)
-    let numQty = 1, isTextQty = false, textQty = ''
-    if (qty) {
-      const m = qty.match(/^(\d+)x$/i)
-      if (m) numQty = parseInt(m[1])
-      else { isTextQty = true; textQty = qty }
-    }
+    const m = qty?.match(/^(\d+)x$/i)
     setRecipeIngredientDetailIndex(idx)
     setRecipeIngredientDetailName(baseName)
-    setRecipeIngredientDetailQty(numQty)
-    setRecipeIngredientDetailQtyIsText(isTextQty)
-    setRecipeIngredientDetailQtyText(textQty)
+    setRecipeIngredientDetailQtyInput(m ? m[1] : (qty || '1'))
   }
 
   function buildRecipeIngredientDetailName() {
     const base = recipeIngredientDetailName.trim()
     if (!base) return null
-    if (recipeIngredientDetailQtyIsText && recipeIngredientDetailQtyText.trim()) return `${recipeIngredientDetailQtyText.trim()} ${base}`
-    if (!recipeIngredientDetailQtyIsText && recipeIngredientDetailQty > 1) return `${recipeIngredientDetailQty}x ${base}`
+    const qty = parseQtyInput(recipeIngredientDetailQtyInput)
+    if (qty && qty !== '1x') return `${qty} ${base}`
     return base
   }
 
@@ -1832,24 +1844,17 @@ export default function App() {
   // --- Item detail sheet ---
   function openDetail(item) {
     const { qty, name: baseName } = parseItemName(item.name)
-    let numQty = 1, isTextQty = false, textQty = ''
-    if (qty) {
-      const m = qty.match(/^(\d+)x$/i)
-      if (m) numQty = parseInt(m[1])
-      else { isTextQty = true; textQty = qty }
-    }
+    const m = qty?.match(/^(\d+)x$/i)
     setDetailName(baseName)
-    setDetailQty(numQty)
-    setDetailQtyIsText(isTextQty)
-    setDetailQtyText(textQty)
+    setDetailQtyInput(m ? m[1] : (qty || '1'))
     setDetailItem(item)
   }
 
   function buildDetailName() {
     const base = detailName.trim()
     if (!base) return null
-    if (detailQtyIsText && detailQtyText.trim()) return `${detailQtyText.trim()} ${base}`
-    if (!detailQtyIsText && detailQty > 1) return `${detailQty}x ${base}`
+    const qty = parseQtyInput(detailQtyInput)
+    if (qty && qty !== '1x') return `${qty} ${base}`
     return base
   }
 
@@ -2042,18 +2047,33 @@ export default function App() {
                         {inputQty && <span className="suggestion-qty">{inputQty} </span>}
                         {p.name}
                       </span>
-                      <span className="suggestion-cat">
+                      <span
+                        className="suggestion-cat"
+                        onClick={e => { e.stopPropagation(); setAddCategoryPicker({ kind: 'product', product: p, catId: p.category || 'other' }) }}
+                      >
                         {getCat(p.category)?.icon ?? '🛍️'} {getCat(p.category)?.name ?? 'Other'}
+                        <span className="suggestion-cat-arrow">›</span>
                       </span>
                     </button>
                   )
                 ))}
-                {input.trim() && (
-                  <button onClick={() => addCustomItem(input.trim())} className="suggestion-item suggestion-custom">
-                    <span className="suggestion-name">Add &ldquo;{input.trim()}&rdquo;</span>
-                    <span className="suggestion-cat">🛍️ Other</span>
-                  </button>
-                )}
+                {input.trim() && (() => {
+                  const { name: cleanName } = parseInputQty(input.trim())
+                  const learned = getCustomProducts().find(p => p.name.toLowerCase() === cleanName.toLowerCase() && p.category && p.category !== 'other')
+                  const catId = learned ? learned.category : 'other'
+                  return (
+                    <button onClick={() => addCustomItem(input.trim())} className="suggestion-item suggestion-custom">
+                      <span className="suggestion-name">Add &ldquo;{input.trim()}&rdquo;</span>
+                      <span
+                        className="suggestion-cat"
+                        onClick={e => { e.stopPropagation(); setAddCategoryPicker({ kind: 'custom', rawName: input.trim(), catId }) }}
+                      >
+                        {getCat(catId)?.icon ?? '🛍️'} {getCat(catId)?.name ?? 'Other'}
+                        <span className="suggestion-cat-arrow">›</span>
+                      </span>
+                    </button>
+                  )
+                })()}
               </div>
             )}
           </div>
@@ -2328,16 +2348,9 @@ export default function App() {
                 <div className="detail-divider" />
                 <div className="detail-field detail-qty-row">
                   <span className="detail-field-label">How many?</span>
-                  {recipeIngredientDetailQtyIsText ? (
-                    <input type="text" value={recipeIngredientDetailQtyText} onChange={e => setRecipeIngredientDetailQtyText(e.target.value)}
-                      className="detail-qty-text" />
-                  ) : (
-                    <div className="qty-stepper">
-                      <button className="qty-btn" onClick={() => setRecipeIngredientDetailQty(q => Math.max(1, q - 1))}>−</button>
-                      <span className="qty-value">{recipeIngredientDetailQty}</span>
-                      <button className="qty-btn" onClick={() => setRecipeIngredientDetailQty(q => q + 1)}>+</button>
-                    </div>
-                  )}
+                  <input type="text" inputMode="decimal" value={recipeIngredientDetailQtyInput}
+                    onChange={e => setRecipeIngredientDetailQtyInput(e.target.value)}
+                    className="detail-qty-text" placeholder="e.g. 2 or 200g" />
                 </div>
               </div>
               {(() => {
@@ -2406,16 +2419,9 @@ export default function App() {
                   <div className="detail-divider" />
                   <div className="detail-field detail-qty-row">
                     <span className="detail-field-label">How many?</span>
-                    {detailQtyIsText ? (
-                      <input type="text" value={detailQtyText} onChange={e => setDetailQtyText(e.target.value)}
-                        className="detail-qty-text" />
-                    ) : (
-                      <div className="qty-stepper">
-                        <button className="qty-btn" onClick={() => setDetailQty(q => Math.max(1, q - 1))}>−</button>
-                        <span className="qty-value">{detailQty}</span>
-                        <button className="qty-btn" onClick={() => setDetailQty(q => q + 1)}>+</button>
-                      </div>
-                    )}
+                    <input type="text" inputMode="decimal" value={detailQtyInput}
+                      onChange={e => setDetailQtyInput(e.target.value)}
+                      className="detail-qty-text" placeholder="e.g. 2 or 200g" />
                   </div>
                 </div>
               )}
@@ -2490,6 +2496,32 @@ export default function App() {
                   <span className="cat-option-icon">{cat.icon}</span>
                   <span className="cat-option-name">{cat.name}</span>
                   {pickerItem.category_id === cat.id && <span className="cat-option-check">✓</span>}
+                </button>
+              ))}
+            </div>
+          </BottomSheet>
+        </div>
+      )}
+
+      {/* Category picker for a not-yet-added item */}
+      {addCategoryPicker && (
+        <div className="overlay" onClick={() => setAddCategoryPicker(null)}>
+          <BottomSheet onClose={() => setAddCategoryPicker(null)}>
+            <div className="sheet-handle" />
+            <div className="sheet-header">
+              <div>
+                <p className="sheet-label">Choose category</p>
+                <p className="sheet-title">{addCategoryPicker.kind === 'product' ? addCategoryPicker.product.name : addCategoryPicker.rawName}</p>
+              </div>
+              <button onClick={() => setAddCategoryPicker(null)} className="sheet-close">✕</button>
+            </div>
+            <div className="sheet-body">
+              {allCategories.map(cat => (
+                <button key={cat.id} className={`cat-option${addCategoryPicker.catId === cat.id ? ' active' : ''}`}
+                  onClick={() => chooseAddCategory(cat.id)}>
+                  <span className="cat-option-icon">{cat.icon}</span>
+                  <span className="cat-option-name">{cat.name}</span>
+                  {addCategoryPicker.catId === cat.id && <span className="cat-option-check">✓</span>}
                 </button>
               ))}
             </div>

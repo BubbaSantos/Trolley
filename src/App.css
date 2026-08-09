@@ -365,10 +365,23 @@ header h1 {
 }
 
 .suggestion-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15rem;
   font-size: 0.75rem;
   color: var(--text-faint);
   white-space: nowrap;
   margin-left: 0.5rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 0.4rem;
+  cursor: pointer;
+}
+
+.suggestion-cat:hover { background: var(--bg); color: var(--text-muted); }
+
+.suggestion-cat-arrow {
+  opacity: 0.6;
+  font-size: 0.85rem;
 }
 
 .suggestion-custom .suggestion-name {
@@ -1514,48 +1527,8 @@ header h1 {
   font-weight: 500;
 }
 
-.qty-stepper {
-  display: flex;
-  align-items: center;
-  background: var(--surface-hover);
-  border-radius: 0.5rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
-}
-
-.qty-btn {
-  width: 2.25rem;
-  height: 2.25rem;
-  background: var(--surface-hover);
-  color: var(--text-muted);
-  font-size: 1.1rem;
-  font-weight: 500;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.1s, color 0.1s;
-  border: none;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.qty-btn:hover { background: var(--border); color: var(--text); }
-.qty-btn:active { background: var(--accent); color: white; }
-
-.qty-value {
-  min-width: 2rem;
-  text-align: center;
-  font-size: 0.95rem;
-  font-weight: 600;
-  color: var(--text);
-  padding: 0 0.25rem;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-  line-height: 2.25rem;
-}
-
 .detail-qty-text {
-  width: 5rem;
+  width: 7rem;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: 0.4rem;

@@ -2348,7 +2348,7 @@ export default function App() {
                 <div className="detail-divider" />
                 <div className="detail-field detail-qty-row">
                   <span className="detail-field-label">How many?</span>
-                  <input type="text" inputMode="decimal" value={recipeIngredientDetailQtyInput}
+                  <input type="text" value={recipeIngredientDetailQtyInput}
                     onChange={e => setRecipeIngredientDetailQtyInput(e.target.value)}
                     className="detail-qty-text" placeholder="e.g. 2 or 200g" />
                 </div>
@@ -2419,7 +2419,7 @@ export default function App() {
                   <div className="detail-divider" />
                   <div className="detail-field detail-qty-row">
                     <span className="detail-field-label">How many?</span>
-                    <input type="text" inputMode="decimal" value={detailQtyInput}
+                    <input type="text" value={detailQtyInput}
                       onChange={e => setDetailQtyInput(e.target.value)}
                       className="detail-qty-text" placeholder="e.g. 2 or 200g" />
                   </div>

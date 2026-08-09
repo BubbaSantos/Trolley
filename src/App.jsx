@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.15.10'
+const VERSION = '2.16.0'
 const SNAP = 80
 const AUTO = 220
 const QUEUE_KEY = 'trolley_queue'
@@ -142,6 +142,13 @@ function getQueue() {
 }
 function saveQueue(q) { try { localStorage.setItem(QUEUE_KEY, JSON.stringify(q)) } catch {} }
 function enqueue(op) { const q = getQueue(); q.push(op); saveQueue(q) }
+
+const RECIPE_QUEUE_KEY = 'trolley_recipe_queue'
+function getRecipeQueue() {
+  try { return JSON.parse(localStorage.getItem(RECIPE_QUEUE_KEY) || '[]') } catch { return [] }
+}
+function saveRecipeQueue(q) { try { localStorage.setItem(RECIPE_QUEUE_KEY, JSON.stringify(q)) } catch {} }
+function enqueueRecipe(op) { const q = getRecipeQueue(); q.push(op); saveRecipeQueue(q) }
 
 function getCustomProducts() {
   try { return JSON.parse(localStorage.getItem('trolley_custom_products') || '[]') } catch { return [] }
@@ -737,12 +744,48 @@ async function flushQueue() {
   const failed = []
   for (const op of q) {
     try {
-      if (op.type === 'INSERT') await supabase.from('list_items').upsert(op.data, { onConflict: 'id' })
-      else if (op.type === 'UPDATE') await supabase.from('list_items').update(op.data).eq('id', op.id)
-      else if (op.type === 'DELETE') await supabase.from('list_items').delete().eq('id', op.id)
+      let error
+      if (op.type === 'INSERT') {
+        ;({ error } = await supabase.from('list_items').upsert(op.data, { onConflict: 'id' }))
+        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          const { added_by, checked_by, ...base } = op.data
+          ;({ error } = await supabase.from('list_items').upsert(base, { onConflict: 'id' }))
+        }
+      } else if (op.type === 'UPDATE') {
+        ;({ error } = await supabase.from('list_items').update(op.data).eq('id', op.id))
+        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          const { added_by, checked_by, ...base } = op.data
+          if (Object.keys(base).length) ({ error } = await supabase.from('list_items').update(base).eq('id', op.id))
+          else error = null
+        }
+      } else if (op.type === 'DELETE') {
+        ;({ error } = await supabase.from('list_items').delete().eq('id', op.id))
+      }
+      if (error) throw error
     } catch { failed.push(op) }
   }
   saveQueue(failed)
+}
+
+async function flushRecipeQueue() {
+  const q = getRecipeQueue(); if (!q.length) return
+  const failed = []
+  for (const op of q) {
+    try {
+      let error
+      if (op.type === 'UPSERT') {
+        ;({ error } = await supabase.from('list_recipes').upsert(op.data, { onConflict: 'id' }))
+        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          const { is_favourite, ...base } = op.data
+          ;({ error } = await supabase.from('list_recipes').upsert(base, { onConflict: 'id' }))
+        }
+      } else if (op.type === 'DELETE') {
+        ;({ error } = await supabase.from('list_recipes').delete().eq('id', op.id))
+      }
+      if (error) throw error
+    } catch { failed.push(op) }
+  }
+  saveRecipeQueue(failed)
 }
 
 function loadCategoryOrder() {
@@ -1039,8 +1082,7 @@ export default function App() {
       const { qty } = parseItemName(item.name)
       const update = { name: qty ? `${qty} ${newName}` : newName, category: cat?.name ?? 'Other', category_id: newCatId }
       setItems(prev => { const next = prev.map(i => i.id === item.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) await supabase.from('list_items').update(update).eq('id', item.id)
-      else enqueue({ type: 'UPDATE', id: item.id, data: update })
+      await remoteUpdateItem(item.id, update)
     }
 
     setSettingsView('items')
@@ -1131,7 +1173,7 @@ export default function App() {
     const cachedRecipes = getRecipes(code)
     if (cachedRecipes.length > 0) setRecipes(cachedRecipes)
     if (!navigator.onLine) return
-    await flushQueue()
+    await Promise.all([flushQueue(), flushRecipeQueue()])
     const [{ data: itemData }, { data: histData }, { data: recipeData }] = await Promise.all([
       supabase.from('list_items').select('*').eq('list_code', code).order('created_at', { ascending: true }),
       supabase.from('list_history').select('*').eq('list_code', code),
@@ -1239,6 +1281,82 @@ export default function App() {
     channelRef.current?.send({ type: 'broadcast', event: 'change', payload: {} })
   }
 
+  // These wrap every direct write so a failed request (not just a known-offline browser)
+  // always falls back to the offline queue instead of silently dropping the change —
+  // navigator.onLine can report true with no real connectivity (e.g. wifi with no internet).
+  async function remoteUpdateItem(id, data, fallbackData) {
+    if (navigator.onLine) {
+      try {
+        let { error } = await supabase.from('list_items').update(data).eq('id', id)
+        if (error && fallbackData && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          ;({ error } = await supabase.from('list_items').update(fallbackData).eq('id', id))
+        }
+        if (error) throw error
+        notifyChange()
+        return
+      } catch {}
+    }
+    enqueue({ type: 'UPDATE', id, data })
+  }
+
+  async function remoteInsertItem(newItem) {
+    if (navigator.onLine) {
+      try {
+        const { error } = await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
+        if (error) {
+          if (error.code === 'PGRST204' || error.message?.includes('does not exist')) {
+            const { added_by, checked_by, ...base } = newItem
+            const { error: baseError } = await supabase.from('list_items').upsert(base, { onConflict: 'id' })
+            if (baseError) throw baseError
+          } else throw error
+        }
+        notifyChange()
+        return
+      } catch {}
+    }
+    enqueue({ type: 'INSERT', data: newItem })
+  }
+
+  async function remoteDeleteItems(ids) {
+    if (navigator.onLine) {
+      try {
+        const { error } = ids.length > 1
+          ? await supabase.from('list_items').delete().in('id', ids)
+          : await supabase.from('list_items').delete().eq('id', ids[0])
+        if (error) throw error
+        notifyChange()
+        return
+      } catch {}
+    }
+    ids.forEach(id => enqueue({ type: 'DELETE', id }))
+  }
+
+  async function remoteUpsertRecipe(data) {
+    if (navigator.onLine) {
+      try {
+        let { error } = await supabase.from('list_recipes').upsert(data, { onConflict: 'id' })
+        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
+          const { is_favourite, ...base } = data
+          ;({ error } = await supabase.from('list_recipes').upsert(base, { onConflict: 'id' }))
+        }
+        if (error) throw error
+        return
+      } catch {}
+    }
+    enqueueRecipe({ type: 'UPSERT', data })
+  }
+
+  async function remoteDeleteRecipe(id) {
+    if (navigator.onLine) {
+      try {
+        const { error } = await supabase.from('list_recipes').delete().eq('id', id)
+        if (error) throw error
+        return
+      } catch {}
+    }
+    enqueueRecipe({ type: 'DELETE', id })
+  }
+
   async function joinList(e) {
     e.preventDefault()
     const code = inputCode.trim().toUpperCase()
@@ -1344,14 +1462,7 @@ export default function App() {
     setItems(prev => { const next = [...prev, newItem]; setCachedItems(listCode, next); return next })
     locallyAddedIdsRef.current.add(newItem.id)
     markEntering(newItem.id)
-    if (navigator.onLine) {
-      const { error } = await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
-      if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
-        const { added_by, checked_by, ...base } = newItem
-        await supabase.from('list_items').upsert(base, { onConflict: 'id' })
-      }
-      notifyChange()
-    } else enqueue({ type: 'INSERT', data: newItem })
+    await remoteInsertItem(newItem)
   }
 
   function confirmDuplicate(existing) {
@@ -1374,8 +1485,7 @@ export default function App() {
         added_by: mergeAddedBy(existing.added_by, newItem.added_by),
       }
       setItems(prev => { const next = prev.map(i => i.id === existing.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', existing.id); notifyChange() }
-      else enqueue({ type: 'UPDATE', id: existing.id, data: update })
+      await remoteUpdateItem(existing.id, update)
       return true
     }
     await doAddItem(newItem)
@@ -1441,24 +1551,11 @@ export default function App() {
         const now = Date.now()
         const checkedBy = userNameRef.current || null
         setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now, checked_by: checkedBy } : i); setCachedItems(listCode, next); return next })
-        if (navigator.onLine) {
-          const update = { checked: true, checked_by: checkedBy }
-          const { error } = await supabase.from('list_items').update(update).eq('id', id)
-          if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
-            await supabase.from('list_items').update({ checked: true }).eq('id', id)
-          }
-          notifyChange()
-        } else enqueue({ type: 'UPDATE', id, data: { checked: true, checked_by: checkedBy } })
+        await remoteUpdateItem(id, { checked: true, checked_by: checkedBy }, { checked: true })
       }, 1300)
     } else {
       setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) {
-        const { error } = await supabase.from('list_items').update({ checked: false, checked_by: null }).eq('id', id)
-        if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
-          await supabase.from('list_items').update({ checked: false }).eq('id', id)
-        }
-        notifyChange()
-      } else enqueue({ type: 'UPDATE', id, data: { checked: false, checked_by: null } })
+      await remoteUpdateItem(id, { checked: false, checked_by: null }, { checked: false })
     }
   }
 
@@ -1476,8 +1573,7 @@ export default function App() {
       }
     }
     setItems(prev => { const next = prev.filter(i => i.id !== id); setCachedItems(listCode, next); return next })
-    if (navigator.onLine) { await supabase.from('list_items').delete().eq('id', id); notifyChange() }
-    else enqueue({ type: 'DELETE', id })
+    await remoteDeleteItems([id])
   }
 
   async function clearChecked() {
@@ -1490,8 +1586,7 @@ export default function App() {
       setExitingIds(prev => { const s = new Set(prev); ids.forEach(id => s.delete(id)); return s })
       setItems(prev => { const next = prev.filter(i => !ids.includes(i.id)); setCachedItems(listCode, next); return next })
     }, 260)
-    if (navigator.onLine) { await supabase.from('list_items').delete().in('id', ids); notifyChange() }
-    else ids.forEach(id => enqueue({ type: 'DELETE', id }))
+    await remoteDeleteItems(ids)
   }
 
   async function changeCategory(itemId, newCatId) {
@@ -1501,8 +1596,7 @@ export default function App() {
     if (item) upsertCustomProduct(item.name, newCatId)
     setItems(prev => { const next = prev.map(i => i.id === itemId ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
     setPickerItem(null)
-    if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', itemId); notifyChange() }
-    else enqueue({ type: 'UPDATE', id: itemId, data: update })
+    await remoteUpdateItem(itemId, update)
   }
 
   async function chooseAddCategory(catId) {
@@ -1528,8 +1622,7 @@ export default function App() {
       setItems([]); setCachedItems(listCode, [])
     }, 300)
     closeSettings()
-    if (navigator.onLine) { await supabase.from('list_items').delete().eq('list_code', listCode); notifyChange() }
-    else ids.forEach(id => enqueue({ type: 'DELETE', id }))
+    await remoteDeleteItems(ids)
   }
 
   async function clearHistory() {
@@ -1764,12 +1857,7 @@ export default function App() {
       return next
     })
     setRecipeEditing(null)
-    if (navigator.onLine) {
-      await supabase.from('list_recipes').upsert(
-        { id: toSave.id, list_code: listCode, name: toSave.name, ingredients: toSave.ingredients, is_favourite: toSave.is_favourite },
-        { onConflict: 'id' },
-      )
-    }
+    await remoteUpsertRecipe({ id: toSave.id, list_code: listCode, name: toSave.name, ingredients: toSave.ingredients, is_favourite: toSave.is_favourite })
   }
 
   function cancelRecipeEdit() { setRecipeEditing(null); setConfirmDeleteRecipe(false) }
@@ -1779,7 +1867,7 @@ export default function App() {
     setConfirmDeleteRecipe(false)
     setRecipeEditing(null)
     setViewingRecipe(null)
-    if (navigator.onLine) await supabase.from('list_recipes').delete().eq('id', id)
+    await remoteDeleteRecipe(id)
   }
 
   async function toggleRecipeFavourite(id) {
@@ -1791,7 +1879,7 @@ export default function App() {
       saveRecipesFor(listCode, next)
       return next
     })
-    if (navigator.onLine) await supabase.from('list_recipes').update({ is_favourite: isFav }).eq('id', id)
+    await remoteUpsertRecipe({ id: recipe.id, list_code: listCode, name: recipe.name, ingredients: recipe.ingredients, is_favourite: isFav })
   }
 
   function openRecipeView(recipe) {
@@ -1866,8 +1954,7 @@ export default function App() {
     if (detailItem.id) {
       const update = { name: newName }
       setItems(prev => { const next = prev.map(i => i.id === detailItem.id ? { ...i, ...update } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) { await supabase.from('list_items').update(update).eq('id', detailItem.id); notifyChange() }
-      else enqueue({ type: 'UPDATE', id: detailItem.id, data: update })
+      await remoteUpdateItem(detailItem.id, update)
     }
 
     const { name: oldBase } = parseItemName(detailItem.name)
@@ -1900,8 +1987,7 @@ export default function App() {
     const itemForPicker = newName ? { ...detailItem, name: newName } : detailItem
     if (newName && newName !== detailItem.name) {
       setItems(prev => { const next = prev.map(i => i.id === detailItem.id ? { ...i, name: newName } : i); setCachedItems(listCode, next); return next })
-      if (navigator.onLine) supabase.from('list_items').update({ name: newName }).eq('id', detailItem.id).then(() => notifyChange())
-      else enqueue({ type: 'UPDATE', id: detailItem.id, data: { name: newName } })
+      remoteUpdateItem(detailItem.id, { name: newName })
     }
     setDetailItem(null)
     setPickerItem(itemForPicker)

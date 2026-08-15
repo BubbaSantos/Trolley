@@ -15,6 +15,8 @@ import './App.css'
 const VERSION = '2.16.0'
 const SNAP = 80
 const AUTO = 220
+const HOLD_MS = 550
+const UNSTRIKE_MS = 450
 const QUEUE_KEY = 'trolley_queue'
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#94a3b8', '#78716c']
 
@@ -289,14 +291,17 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking, isUnstriking }) {
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const [isPrimed, setIsPrimed] = useState(false)
+  const [isHolding, setIsHolding] = useState(false)
   const txRef = useRef(0)
   const rowRef = useRef(null)
   const onDeleteRef = useRef(onDelete)
   const primedTimerRef = useRef(null)
+  const holdTimerRef = useRef(null)
+  const holdFiredRef = useRef(false)
   useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
 
   useEffect(() => {
@@ -314,18 +319,37 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
     if (!el) return
     let startX = 0, startY = 0, dir = null, baseX = 0
 
+    function startHold() {
+      if (!item.checked || isStriking || isUnstriking) return
+      clearTimeout(holdTimerRef.current)
+      holdFiredRef.current = false
+      setIsHolding(true)
+      holdTimerRef.current = setTimeout(() => {
+        holdFiredRef.current = true
+        setIsHolding(false)
+        haptic(12)
+        onToggle(item.id, item.checked)
+      }, HOLD_MS)
+    }
+    function cancelHold() {
+      clearTimeout(holdTimerRef.current)
+      setIsHolding(false)
+    }
+
     function onStart(e) {
       startX = e.touches[0].clientX; startY = e.touches[0].clientY
       dir = null; baseX = txRef.current; setAnimate(false)
+      startHold()
     }
     function onMove(e) {
       const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
-      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
+      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; cancelHold() }; return }
       if (dir !== 'h') return
       e.preventDefault()
       setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))
     }
     function onEnd() {
+      cancelHold()
       if (dir !== 'h') return
       setAnimate(true)
       const t = txRef.current
@@ -334,20 +358,35 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
       else setTx(0)
     }
 
+    function onMouseDown(e) { if (e.button === 0) startHold() }
+    function onMouseUp() { cancelHold() }
+    function onMouseLeave() { cancelHold() }
+
     el.addEventListener('touchstart', onStart, { passive: true })
     el.addEventListener('touchmove', onMove, { passive: false })
     el.addEventListener('touchend', onEnd, { passive: true })
+    el.addEventListener('touchcancel', onEnd, { passive: true })
+    el.addEventListener('mousedown', onMouseDown)
+    el.addEventListener('mouseup', onMouseUp)
+    el.addEventListener('mouseleave', onMouseLeave)
     return () => {
       el.removeEventListener('touchstart', onStart)
       el.removeEventListener('touchmove', onMove)
       el.removeEventListener('touchend', onEnd)
+      el.removeEventListener('touchcancel', onEnd)
+      el.removeEventListener('mousedown', onMouseDown)
+      el.removeEventListener('mouseup', onMouseUp)
+      el.removeEventListener('mouseleave', onMouseLeave)
+      clearTimeout(holdTimerRef.current)
     }
-  }, [item.id])
+  }, [item.id, item.checked, isStriking, isUnstriking])
 
   function handleClick(e) {
+    if (holdFiredRef.current) { holdFiredRef.current = false; return }
     if (txRef.current !== 0) { setAnimate(true); setTx(0); return }
     if (e.target.closest('button')) return
-    if (item.checked || isStriking) { onToggle(item.id, item.checked); return }
+    if (isStriking) { onToggle(item.id, item.checked); return }
+    if (item.checked) return
     const now = Date.now()
     if (isPrimed && now - (lastTapRef.current[item.id] || 0) < 2000) {
       clearTimeout(primedTimerRef.current)
@@ -379,19 +418,29 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
         >Delete</button>
         <div
           ref={rowRef}
-          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
+          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}${isUnstriking ? ' unstriking' : ''}`}
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
         >
           <div className="check-btn-wrap">
             <button
               className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
-              onClick={e => { e.stopPropagation(); onToggle(item.id, item.checked) }}
+              onClick={e => { e.stopPropagation(); if (isStriking) onToggle(item.id, item.checked) }}
             >
               <span className="checkmark">{item.checked || isStriking ? '✓' : ''}</span>
             </button>
             {isStriking && (
               <svg className="check-clock" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
+              </svg>
+            )}
+            {isHolding && (
+              <svg className="check-clock check-clock-hold" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
+              </svg>
+            )}
+            {isUnstriking && (
+              <svg className="check-clock check-clock-return" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
               </svg>
             )}
@@ -402,7 +451,9 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
             </span>
             {isPrimed && <span className="tap-hint">tap again to check</span>}
             {!isPrimed && (
-              (item.checked || isStriking) && item.checked_by
+              isHolding
+                ? <span className="tap-hint hold-hint">hold to return to list…</span>
+                : (item.checked || isStriking) && item.checked_by
                 ? <span className="item-attribution">checked by {item.checked_by}</span>
                 : !item.checked && !isStriking && item.added_by
                 ? <span className="item-attribution">added by {item.added_by}</span>
@@ -869,6 +920,7 @@ export default function App() {
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
+  const [unstrikingIds, setUnstrikingIds] = useState(() => new Set())
   const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
   const [userColor, setUserColor] = useState(() => localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const [showNamePrompt, setShowNamePrompt] = useState(false)
@@ -1542,6 +1594,7 @@ export default function App() {
       setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
       return
     }
+    if (checked && unstrikingIds.has(id)) return
     haptic(checked ? 8 : [10, 30, 10])
     if (!checked) {
       setStrikingIds(prev => new Set([...prev, id]))
@@ -1554,8 +1607,12 @@ export default function App() {
         await remoteUpdateItem(id, { checked: true, checked_by: checkedBy }, { checked: true })
       }, 1300)
     } else {
-      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
-      await remoteUpdateItem(id, { checked: false, checked_by: null }, { checked: false })
+      setUnstrikingIds(prev => new Set([...prev, id]))
+      setTimeout(async () => {
+        setUnstrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
+        await remoteUpdateItem(id, { checked: false, checked_by: null }, { checked: false })
+      }, UNSTRIKE_MS)
     }
   }
 
@@ -2044,6 +2101,7 @@ export default function App() {
         onInfo={openDetail} lastTapRef={lastTapRef}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
         isStriking={strikingIds.has(item.id)}
+        isUnstriking={unstrikingIds.has(item.id)}
       />
     )
   }

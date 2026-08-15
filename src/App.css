@@ -540,6 +540,12 @@ header h1 {
   transition: opacity 0.2s, text-decoration 0.2s;
 }
 
+.swipe-row.unstriking .item-name-group {
+  text-decoration: none;
+  opacity: 0.45;
+  transition: opacity 0.2s, text-decoration 0.2s;
+}
+
 .check-btn-wrap {
   position: relative;
   flex-shrink: 0;
@@ -583,6 +589,21 @@ header h1 {
   to { stroke-dashoffset: 0; }
 }
 
+.check-clock-hold circle {
+  stroke: var(--red);
+  animation: clock-fill 550ms linear forwards;
+}
+
+.check-clock-return circle {
+  stroke: var(--red);
+  stroke-dashoffset: 0;
+  animation: clock-drain 450ms linear forwards;
+}
+
+@keyframes clock-drain {
+  to { stroke-dashoffset: 100.53; }
+}
+
 .tap-hint {
   display: block;
   font-size: 0.68rem;
@@ -590,6 +611,10 @@ header h1 {
   opacity: 0.8;
   margin-top: 0.15rem;
   animation: fade-in 0.15s ease;
+}
+
+.tap-hint.hold-hint {
+  color: var(--red);
 }
 
 .checkmark { line-height: 1; }

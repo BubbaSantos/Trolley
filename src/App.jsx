@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.19.3'
+const VERSION = '2.19.4'
 const SNAP = 80
 const AUTO = 220
 const DEFAULT_CHECK_HOLD_MS = 500
@@ -2148,6 +2148,10 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="rotate-lock-overlay">
+        <span className="rotate-lock-icon">📱</span>
+        <p>Please rotate your device back to portrait</p>
+      </div>
       <header>
         <div className="header-left" onClick={() => window.location.reload()}>
           <span className="logo">🛒</span>

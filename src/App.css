@@ -522,6 +522,10 @@ header h1 {
   background: var(--surface);
   transition: background 0.1s;
   border-radius: 0.6rem;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .swipe-row.animate {
@@ -783,6 +787,46 @@ header h1 {
   display: flex;
   align-items: flex-end;
   animation: fade-in 0.2s ease;
+}
+
+/* ---- Rotate-back overlay (touch phones can't be OS-locked to portrait) ---- */
+
+.rotate-lock-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: var(--bg);
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  text-align: center;
+  padding: 2rem;
+}
+
+.rotate-lock-icon {
+  font-size: 3rem;
+  display: inline-block;
+  animation: rotate-hint 1.6s ease-in-out infinite;
+}
+
+@keyframes rotate-hint {
+  0%, 100% { transform: rotate(0deg); }
+  50% { transform: rotate(-90deg); }
+}
+
+.rotate-lock-overlay p {
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text);
+  max-width: 20rem;
+}
+
+@media screen and (orientation: landscape) and (hover: none) and (pointer: coarse) {
+  .rotate-lock-overlay {
+    display: flex;
+  }
 }
 
 @keyframes fade-in {

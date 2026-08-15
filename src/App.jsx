@@ -15,7 +15,7 @@ import './App.css'
 const VERSION = '2.16.0'
 const SNAP = 80
 const AUTO = 220
-const HOLD_MS = 550
+const HOLD_MS = 1800
 const UNSTRIKE_MS = 450
 const QUEUE_KEY = 'trolley_queue'
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#94a3b8', '#78716c']
@@ -281,6 +281,29 @@ function mergeAddedBy(existingAddedBy, incomingName) {
 
 function haptic(pattern = 10) { try { navigator.vibrate?.(pattern) } catch {} }
 
+function timeAgo(ts) {
+  if (!ts) return ''
+  const then = typeof ts === 'number' ? ts : new Date(ts).getTime()
+  if (Number.isNaN(then)) return ''
+  const secs = Math.max(0, Math.floor((Date.now() - then) / 1000))
+  if (secs < 30) return 'now'
+  if (secs < 60) return `${secs}s ago`
+  const mins = Math.floor(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  return `${days}d ago`
+}
+
+function useNowTick(intervalMs = 30000) {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    const id = setInterval(() => setTick(t => t + 1), intervalMs)
+    return () => clearInterval(id)
+  }, [intervalMs])
+}
+
 function useOnlineStatus() {
   const [online, setOnline] = useState(navigator.onLine)
   useEffect(() => {
@@ -292,6 +315,7 @@ function useOnlineStatus() {
 }
 
 function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking, isUnstriking }) {
+  useNowTick()
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const [isPrimed, setIsPrimed] = useState(false)
@@ -454,9 +478,9 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
               isHolding
                 ? <span className="tap-hint hold-hint">hold to return to list…</span>
                 : (item.checked || isStriking) && item.checked_by
-                ? <span className="item-attribution">checked by {item.checked_by}</span>
+                ? <span className="item-attribution">checked by {item.checked_by}{item.checked_at && ` ${timeAgo(item.checked_at)}`}</span>
                 : !item.checked && !isStriking && item.added_by
-                ? <span className="item-attribution">added by {item.added_by}</span>
+                ? <span className="item-attribution">added by {item.added_by}{item.created_at && ` ${timeAgo(item.created_at)}`}</span>
                 : null
             )}
           </span>

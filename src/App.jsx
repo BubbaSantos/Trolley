@@ -12,10 +12,13 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.18.1'
+const VERSION = '2.19.0'
 const SNAP = 80
 const AUTO = 220
-const HOLD_MS = 1000
+const DEFAULT_CHECK_HOLD_MS = 1000
+const DEFAULT_UNCHECK_HOLD_MS = 1000
+const HOLD_MIN_MS = 300
+const HOLD_MAX_MS = 3000
 const QUEUE_KEY = 'trolley_queue'
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#94a3b8', '#78716c']
 
@@ -313,7 +316,8 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, isExiting, isStriking }) {
+function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, isExiting, isStriking, checkHoldMs, uncheckHoldMs }) {
+  const holdMs = item.checked ? uncheckHoldMs : checkHoldMs
   useNowTick()
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
@@ -342,7 +346,7 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
         setIsHolding(false)
         haptic(item.checked ? 12 : [10, 30, 10])
         onToggle(item.id, item.checked)
-      }, HOLD_MS)
+      }, holdMs)
     }
     function cancelHold() {
       clearTimeout(holdTimerRef.current)
@@ -392,7 +396,7 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
       el.removeEventListener('mouseleave', onMouseLeave)
       clearTimeout(holdTimerRef.current)
     }
-  }, [item.id, item.checked, isStriking])
+  }, [item.id, item.checked, isStriking, holdMs])
 
   function handleClick() {
     if (holdFiredRef.current) { holdFiredRef.current = false; return }
@@ -436,7 +440,7 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
             )}
             {isHolding && (
               <svg className={`check-clock check-clock-hold${item.checked ? '' : ' check-clock-hold-check'}`} viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
+                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" style={{ animationDuration: `${holdMs}ms` }} />
               </svg>
             )}
           </div>
@@ -915,6 +919,23 @@ export default function App() {
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
+  const [checkHoldMs, setCheckHoldMs] = useState(() => {
+    const saved = parseInt(localStorage.getItem('trolley_hold_check_ms'), 10)
+    return Number.isFinite(saved) ? saved : DEFAULT_CHECK_HOLD_MS
+  })
+  const [uncheckHoldMs, setUncheckHoldMs] = useState(() => {
+    const saved = parseInt(localStorage.getItem('trolley_hold_uncheck_ms'), 10)
+    return Number.isFinite(saved) ? saved : DEFAULT_UNCHECK_HOLD_MS
+  })
+
+  function changeCheckHoldMs(ms) {
+    setCheckHoldMs(ms)
+    localStorage.setItem('trolley_hold_check_ms', String(ms))
+  }
+  function changeUncheckHoldMs(ms) {
+    setUncheckHoldMs(ms)
+    localStorage.setItem('trolley_hold_uncheck_ms', String(ms))
+  }
   const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
   const [userColor, setUserColor] = useState(() => localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const [showNamePrompt, setShowNamePrompt] = useState(false)
@@ -2094,6 +2115,7 @@ export default function App() {
         onInfo={openDetail}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
         isStriking={strikingIds.has(item.id)}
+        checkHoldMs={checkHoldMs} uncheckHoldMs={uncheckHoldMs}
       />
     )
   }
@@ -2710,7 +2732,7 @@ export default function App() {
                   <span className="sheet-back">‹</span>
                 )}
                 <p className="sheet-title">
-                  {settingsView === 'main' ? 'Settings' : settingsView === 'manage' ? 'Manage' : settingsView === 'items' ? 'Manage Items' : settingsView === 'item-edit' ? 'Edit Item' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : 'Manage Categories'}
+                  {settingsView === 'main' ? 'Settings' : settingsView === 'manage' ? 'Manage' : settingsView === 'items' ? 'Manage Items' : settingsView === 'item-edit' ? 'Edit Item' : settingsView === 'list' ? 'List Code' : settingsView === 'reset' ? 'Reset' : settingsView === 'appearance' ? 'Appearance' : settingsView === 'hold' ? 'Press & Hold' : 'Manage Categories'}
                 </p>
               </div>
               <button onClick={closeSettings} className="sheet-close">✕</button>
@@ -2743,6 +2765,13 @@ export default function App() {
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Manage</span>
                       <span className="settings-nav-sub">Items &amp; categories</span>
+                    </div>
+                    <span className="settings-nav-arrow">›</span>
+                  </button>
+                  <button className="settings-nav-item" onClick={() => setSettingsView('hold')}>
+                    <div className="settings-nav-left">
+                      <span className="settings-nav-title">Press &amp; Hold</span>
+                      <span className="settings-nav-sub">{(checkHoldMs / 1000).toFixed(1)}s check · {(uncheckHoldMs / 1000).toFixed(1)}s return</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -2926,6 +2955,36 @@ export default function App() {
                         onClick={() => changeAccent(a.id)}
                       />
                     ))}
+                  </div>
+                </>
+              )}
+              {settingsView === 'hold' && (
+                <>
+                  <div className="hold-slider-block">
+                    <div className="hold-slider-header">
+                      <span className="settings-row-label">Check off</span>
+                      <span className="hold-slider-value">{(checkHoldMs / 1000).toFixed(1)}s</span>
+                    </div>
+                    <input
+                      type="range" className="hold-slider"
+                      min={HOLD_MIN_MS} max={HOLD_MAX_MS} step={100}
+                      value={checkHoldMs}
+                      onChange={e => changeCheckHoldMs(parseInt(e.target.value, 10))}
+                    />
+                    <p className="hold-slider-hint">How long you hold an unchecked item to check it off</p>
+                  </div>
+                  <div className="hold-slider-block">
+                    <div className="hold-slider-header">
+                      <span className="settings-row-label">Return to list</span>
+                      <span className="hold-slider-value">{(uncheckHoldMs / 1000).toFixed(1)}s</span>
+                    </div>
+                    <input
+                      type="range" className="hold-slider"
+                      min={HOLD_MIN_MS} max={HOLD_MAX_MS} step={100}
+                      value={uncheckHoldMs}
+                      onChange={e => changeUncheckHoldMs(parseInt(e.target.value, 10))}
+                    />
+                    <p className="hold-slider-hint">How long you hold a checked item to return it to the list</p>
                   </div>
                 </>
               )}

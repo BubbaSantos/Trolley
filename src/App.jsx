@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.17.1'
+const VERSION = '2.17.2'
 const SNAP = 80
 const AUTO = 220
 const HOLD_MS = 1000
@@ -366,7 +366,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
     }
     function onMove(e) {
       const dx = e.touches[0].clientX - startX, dy = e.touches[0].clientY - startY
-      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) { dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; cancelHold() }; return }
+      if (!dir) { if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dir = Math.abs(dx) > Math.abs(dy) ? 'h' : 'v'; return }
       if (dir !== 'h') return
       e.preventDefault()
       setTx(Math.min(0, Math.max(-(AUTO + 20), baseX + dx)))

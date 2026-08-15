@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.18.0'
+const VERSION = '2.18.1'
 const SNAP = 80
 const AUTO = 220
 const HOLD_MS = 1000
@@ -313,7 +313,7 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, isEntering, isExiting }) {
+function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, isExiting, isStriking }) {
   useNowTick()
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
@@ -333,6 +333,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, isEntering, isExiting }) 
     let startX = 0, startY = 0, dir = null, baseX = 0
 
     function startHold() {
+      if (isStriking) return
       clearTimeout(holdTimerRef.current)
       holdFiredRef.current = false
       setIsHolding(true)
@@ -391,7 +392,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, isEntering, isExiting }) 
       el.removeEventListener('mouseleave', onMouseLeave)
       clearTimeout(holdTimerRef.current)
     }
-  }, [item.id, item.checked])
+  }, [item.id, item.checked, isStriking])
 
   function handleClick() {
     if (holdFiredRef.current) { holdFiredRef.current = false; return }
@@ -412,17 +413,27 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, isEntering, isExiting }) 
         >Delete</button>
         <div
           ref={rowRef}
-          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
+          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
         >
           <div className="check-btn-wrap">
             <button
-              className={`check-btn${item.checked ? ' checked-btn' : ''}`}
-              onClick={e => e.stopPropagation()}
+              className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
+              onClick={e => {
+                e.stopPropagation()
+                if (holdFiredRef.current) { holdFiredRef.current = false; return }
+                if (item.checked) return
+                onStrikeTap(item.id)
+              }}
             >
-              <span className="checkmark">{item.checked ? '✓' : ''}</span>
+              <span className="checkmark">{item.checked || isStriking ? '✓' : ''}</span>
             </button>
+            {isStriking && (
+              <svg className="check-clock" viewBox="0 0 36 36">
+                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
+              </svg>
+            )}
             {isHolding && (
               <svg className={`check-clock check-clock-hold${item.checked ? '' : ' check-clock-hold-check'}`} viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
@@ -435,9 +446,11 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, isEntering, isExiting }) 
             </span>
             {isHolding
               ? <span className={`tap-hint hold-hint${item.checked ? '' : ' hold-hint-check'}`}>{item.checked ? 'hold to return to list…' : 'hold to check off…'}</span>
-              : item.checked && item.checked_by
+              : isStriking
+              ? <span className="tap-hint">tap circle to cancel</span>
+              : (item.checked) && item.checked_by
               ? <span className="item-attribution">checked by {item.checked_by}{item.checked_at && ` ${timeAgo(item.checked_at)}`}</span>
-              : !item.checked && item.added_by
+              : !item.checked && !isStriking && item.added_by
               ? <span className="item-attribution">added by {item.added_by}{item.created_at && ` ${timeAgo(item.created_at)}`}</span>
               : null
             }
@@ -901,6 +914,7 @@ export default function App() {
   const [showVersion, setShowVersion] = useState(true)
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
+  const [strikingIds, setStrikingIds] = useState(() => new Set())
   const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
   const [userColor, setUserColor] = useState(() => localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const [showNamePrompt, setShowNamePrompt] = useState(false)
@@ -915,6 +929,7 @@ export default function App() {
   const itemsRef = useRef([])
   const historyRef = useRef([])
   const keepSuggestionsRef = useRef(false)
+  const strikeTimerRef = useRef({})
   const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
   const userNameRef = useRef(localStorage.getItem('trolley_username') || '')
@@ -1578,6 +1593,22 @@ export default function App() {
     }
   }
 
+  function startStrikeCheck(id) {
+    if (strikingIds.has(id)) {
+      clearTimeout(strikeTimerRef.current[id])
+      delete strikeTimerRef.current[id]
+      setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+      return
+    }
+    haptic(8)
+    setStrikingIds(prev => new Set([...prev, id]))
+    strikeTimerRef.current[id] = setTimeout(() => {
+      delete strikeTimerRef.current[id]
+      setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
+      toggleItem(id, false)
+    }, 1300)
+  }
+
   async function deleteItem(id) {
     haptic([10, 50, 20])
     const item = itemsRef.current.find(i => i.id === id)
@@ -2059,9 +2090,10 @@ export default function App() {
   function renderItem(item) {
     return (
       <SwipeItem
-        key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem}
+        key={item.id} item={item} onToggle={toggleItem} onStrikeTap={startStrikeCheck} onDelete={deleteItem}
         onInfo={openDetail}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
+        isStriking={strikingIds.has(item.id)}
       />
     )
   }

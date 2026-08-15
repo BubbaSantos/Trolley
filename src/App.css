@@ -530,8 +530,11 @@ header h1 {
 .swipe-row:hover { background: var(--surface-hover); }
 
 .swipe-row.checked .item-name-group {
-  text-decoration: line-through;
   color: var(--text-ghost);
+}
+
+.swipe-row.checked .item-name-line {
+  text-decoration: line-through;
 }
 
 .swipe-row.striking .item-name-group {

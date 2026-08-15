@@ -12,11 +12,10 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.17.0'
+const VERSION = '2.17.1'
 const SNAP = 80
 const AUTO = 220
-const HOLD_MS = 1800
-const UNSTRIKE_MS = 450
+const HOLD_MS = 1000
 const QUEUE_KEY = 'trolley_queue'
 const PRESET_COLORS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#06b6d4', '#6366f1', '#a855f7', '#ec4899', '#94a3b8', '#78716c']
 
@@ -314,7 +313,7 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking, isUnstriking }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
   useNowTick()
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
@@ -344,7 +343,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
     let startX = 0, startY = 0, dir = null, baseX = 0
 
     function startHold() {
-      if (!item.checked || isStriking || isUnstriking) return
+      if (!item.checked || isStriking) return
       clearTimeout(holdTimerRef.current)
       holdFiredRef.current = false
       setIsHolding(true)
@@ -403,7 +402,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
       el.removeEventListener('mouseleave', onMouseLeave)
       clearTimeout(holdTimerRef.current)
     }
-  }, [item.id, item.checked, isStriking, isUnstriking])
+  }, [item.id, item.checked, isStriking])
 
   function handleClick(e) {
     if (holdFiredRef.current) { holdFiredRef.current = false; return }
@@ -442,7 +441,7 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
         >Delete</button>
         <div
           ref={rowRef}
-          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}${isUnstriking ? ' unstriking' : ''}`}
+          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
         >
@@ -460,11 +459,6 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
             )}
             {isHolding && (
               <svg className="check-clock check-clock-hold" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
-              </svg>
-            )}
-            {isUnstriking && (
-              <svg className="check-clock check-clock-return" viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
               </svg>
             )}
@@ -944,7 +938,6 @@ export default function App() {
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
   const [strikingIds, setStrikingIds] = useState(() => new Set())
-  const [unstrikingIds, setUnstrikingIds] = useState(() => new Set())
   const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
   const [userColor, setUserColor] = useState(() => localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const [showNamePrompt, setShowNamePrompt] = useState(false)
@@ -1618,7 +1611,6 @@ export default function App() {
       setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
       return
     }
-    if (checked && unstrikingIds.has(id)) return
     haptic(checked ? 8 : [10, 30, 10])
     if (!checked) {
       setStrikingIds(prev => new Set([...prev, id]))
@@ -1631,12 +1623,8 @@ export default function App() {
         await remoteUpdateItem(id, { checked: true, checked_by: checkedBy }, { checked: true })
       }, 1300)
     } else {
-      setUnstrikingIds(prev => new Set([...prev, id]))
-      setTimeout(async () => {
-        setUnstrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
-        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
-        await remoteUpdateItem(id, { checked: false, checked_by: null }, { checked: false })
-      }, UNSTRIKE_MS)
+      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
+      await remoteUpdateItem(id, { checked: false, checked_by: null }, { checked: false })
     }
   }
 
@@ -2125,7 +2113,6 @@ export default function App() {
         onInfo={openDetail} lastTapRef={lastTapRef}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
         isStriking={strikingIds.has(item.id)}
-        isUnstriking={unstrikingIds.has(item.id)}
       />
     )
   }

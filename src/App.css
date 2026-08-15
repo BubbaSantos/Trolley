@@ -540,12 +540,6 @@ header h1 {
   transition: opacity 0.2s, text-decoration 0.2s;
 }
 
-.swipe-row.unstriking .item-name-group {
-  text-decoration: none;
-  opacity: 0.45;
-  transition: opacity 0.2s, text-decoration 0.2s;
-}
-
 .check-btn-wrap {
   position: relative;
   flex-shrink: 0;
@@ -591,17 +585,7 @@ header h1 {
 
 .check-clock-hold circle {
   stroke: var(--red);
-  animation: clock-fill 1800ms linear forwards;
-}
-
-.check-clock-return circle {
-  stroke: var(--red);
-  stroke-dashoffset: 0;
-  animation: clock-drain 450ms linear forwards;
-}
-
-@keyframes clock-drain {
-  to { stroke-dashoffset: 100.53; }
+  animation: clock-fill 1000ms linear forwards;
 }
 
 .tap-hint {

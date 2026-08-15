@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.17.3'
+const VERSION = '2.18.0'
 const SNAP = 80
 const AUTO = 220
 const HOLD_MS = 1000
@@ -313,27 +313,17 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, isExiting, isStriking }) {
+function SwipeItem({ item, onToggle, onDelete, onInfo, isEntering, isExiting }) {
   useNowTick()
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
-  const [isPrimed, setIsPrimed] = useState(false)
   const [isHolding, setIsHolding] = useState(false)
   const txRef = useRef(0)
   const rowRef = useRef(null)
   const onDeleteRef = useRef(onDelete)
-  const primedTimerRef = useRef(null)
   const holdTimerRef = useRef(null)
   const holdFiredRef = useRef(false)
   useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
-
-  useEffect(() => {
-    if (isStriking) {
-      setIsPrimed(false)
-      clearTimeout(primedTimerRef.current)
-      lastTapRef.current[item.id] = 0
-    }
-  }, [isStriking, item.id])
 
   function setTx(v) { txRef.current = v; _setTx(v) }
 
@@ -343,14 +333,13 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
     let startX = 0, startY = 0, dir = null, baseX = 0
 
     function startHold() {
-      if (!item.checked || isStriking) return
       clearTimeout(holdTimerRef.current)
       holdFiredRef.current = false
       setIsHolding(true)
       holdTimerRef.current = setTimeout(() => {
         holdFiredRef.current = true
         setIsHolding(false)
-        haptic(12)
+        haptic(item.checked ? 12 : [10, 30, 10])
         onToggle(item.id, item.checked)
       }, HOLD_MS)
     }
@@ -402,29 +391,11 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
       el.removeEventListener('mouseleave', onMouseLeave)
       clearTimeout(holdTimerRef.current)
     }
-  }, [item.id, item.checked, isStriking])
+  }, [item.id, item.checked])
 
-  function handleClick(e) {
+  function handleClick() {
     if (holdFiredRef.current) { holdFiredRef.current = false; return }
-    if (txRef.current !== 0) { setAnimate(true); setTx(0); return }
-    if (e.target.closest('button')) return
-    if (isStriking) { onToggle(item.id, item.checked); return }
-    if (item.checked) return
-    const now = Date.now()
-    if (isPrimed && now - (lastTapRef.current[item.id] || 0) < 2000) {
-      clearTimeout(primedTimerRef.current)
-      setIsPrimed(false)
-      lastTapRef.current[item.id] = 0
-      onToggle(item.id, item.checked)
-    } else {
-      lastTapRef.current[item.id] = now
-      setIsPrimed(true)
-      clearTimeout(primedTimerRef.current)
-      primedTimerRef.current = setTimeout(() => {
-        setIsPrimed(false)
-        lastTapRef.current[item.id] = 0
-      }, 2000)
-    }
+    if (txRef.current !== 0) { setAnimate(true); setTx(0) }
   }
 
   const { qty, name: displayName } = parseItemName(item.name)
@@ -441,24 +412,19 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
         >Delete</button>
         <div
           ref={rowRef}
-          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}${isStriking ? ' striking' : ''}`}
+          className={`swipe-row${animate ? ' animate' : ''}${item.checked ? ' checked' : ''}`}
           style={{ transform: `translateX(${tx}px)` }}
           onClick={handleClick}
         >
           <div className="check-btn-wrap">
             <button
-              className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
-              onClick={e => { e.stopPropagation(); if (isStriking) onToggle(item.id, item.checked) }}
+              className={`check-btn${item.checked ? ' checked-btn' : ''}`}
+              onClick={e => e.stopPropagation()}
             >
-              <span className="checkmark">{item.checked || isStriking ? '✓' : ''}</span>
+              <span className="checkmark">{item.checked ? '✓' : ''}</span>
             </button>
-            {isStriking && (
-              <svg className="check-clock" viewBox="0 0 36 36">
-                <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
-              </svg>
-            )}
             {isHolding && (
-              <svg className="check-clock check-clock-hold" viewBox="0 0 36 36">
+              <svg className={`check-clock check-clock-hold${item.checked ? '' : ' check-clock-hold-check'}`} viewBox="0 0 36 36">
                 <circle cx="18" cy="18" r="16" fill="none" strokeLinecap="round" />
               </svg>
             )}
@@ -467,16 +433,14 @@ function SwipeItem({ item, onToggle, onDelete, onInfo, lastTapRef, isEntering, i
             <span className="item-name-line">
               {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
             </span>
-            {isPrimed && <span className="tap-hint">tap again to check</span>}
-            {!isPrimed && (
-              isHolding
-                ? <span className="tap-hint hold-hint">hold to return to list…</span>
-                : (item.checked || isStriking) && item.checked_by
-                ? <span className="item-attribution">checked by {item.checked_by}{item.checked_at && ` ${timeAgo(item.checked_at)}`}</span>
-                : !item.checked && !isStriking && item.added_by
-                ? <span className="item-attribution">added by {item.added_by}{item.created_at && ` ${timeAgo(item.created_at)}`}</span>
-                : null
-            )}
+            {isHolding
+              ? <span className={`tap-hint hold-hint${item.checked ? '' : ' hold-hint-check'}`}>{item.checked ? 'hold to return to list…' : 'hold to check off…'}</span>
+              : item.checked && item.checked_by
+              ? <span className="item-attribution">checked by {item.checked_by}{item.checked_at && ` ${timeAgo(item.checked_at)}`}</span>
+              : !item.checked && item.added_by
+              ? <span className="item-attribution">added by {item.added_by}{item.created_at && ` ${timeAgo(item.created_at)}`}</span>
+              : null
+            }
           </span>
           <button className="info-btn" onClick={e => { e.stopPropagation(); onInfo(item) }} aria-label="Item details" />
         </div>
@@ -937,7 +901,6 @@ export default function App() {
   const [showVersion, setShowVersion] = useState(true)
   const [enteringIds, setEnteringIds] = useState(() => new Set())
   const [exitingIds, setExitingIds] = useState(() => new Set())
-  const [strikingIds, setStrikingIds] = useState(() => new Set())
   const [userName, setUserName] = useState(() => localStorage.getItem('trolley_username') || '')
   const [userColor, setUserColor] = useState(() => localStorage.getItem('trolley_usercolor') || PRESET_COLORS[5])
   const [showNamePrompt, setShowNamePrompt] = useState(false)
@@ -947,13 +910,11 @@ export default function App() {
 
   const inputRef = useRef(null)
   const channelRef = useRef(null)
-  const lastTapRef = useRef({})
   const listCodeRef = useRef(null)
   const locallyAddedIdsRef = useRef(new Set())
   const itemsRef = useRef([])
   const historyRef = useRef([])
   const keepSuggestionsRef = useRef(false)
-  const strikeTimerRef = useRef({})
   const reconnectTimerRef = useRef(null)
   const dismissedRef = useRef(new Map())
   const userNameRef = useRef(localStorage.getItem('trolley_username') || '')
@@ -1605,23 +1566,12 @@ export default function App() {
   }
 
   async function toggleItem(id, checked) {
-    if (strikingIds.has(id)) {
-      clearTimeout(strikeTimerRef.current[id])
-      delete strikeTimerRef.current[id]
-      setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
-      return
-    }
     haptic(checked ? 8 : [10, 30, 10])
     if (!checked) {
-      setStrikingIds(prev => new Set([...prev, id]))
-      strikeTimerRef.current[id] = setTimeout(async () => {
-        delete strikeTimerRef.current[id]
-        setStrikingIds(prev => { const s = new Set(prev); s.delete(id); return s })
-        const now = Date.now()
-        const checkedBy = userNameRef.current || null
-        setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now, checked_by: checkedBy } : i); setCachedItems(listCode, next); return next })
-        await remoteUpdateItem(id, { checked: true, checked_by: checkedBy }, { checked: true })
-      }, 1300)
+      const now = Date.now()
+      const checkedBy = userNameRef.current || null
+      setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: true, checked_at: now, checked_by: checkedBy } : i); setCachedItems(listCode, next); return next })
+      await remoteUpdateItem(id, { checked: true, checked_by: checkedBy }, { checked: true })
     } else {
       setItems(prev => { const next = prev.map(i => i.id === id ? { ...i, checked: false, checked_at: null, checked_by: null } : i); setCachedItems(listCode, next); return next })
       await remoteUpdateItem(id, { checked: false, checked_by: null }, { checked: false })
@@ -2110,9 +2060,8 @@ export default function App() {
     return (
       <SwipeItem
         key={item.id} item={item} onToggle={toggleItem} onDelete={deleteItem}
-        onInfo={openDetail} lastTapRef={lastTapRef}
+        onInfo={openDetail}
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
-        isStriking={strikingIds.has(item.id)}
       />
     )
   }

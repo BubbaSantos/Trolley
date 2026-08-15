@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.19.4'
+const VERSION = '2.19.5'
 const SNAP = 80
 const AUTO = 220
 const DEFAULT_CHECK_HOLD_MS = 500
@@ -1007,6 +1007,20 @@ export default function App() {
   useEffect(() => { const t = setTimeout(() => setShowVersion(false), 2000); return () => clearTimeout(t) }, [])
   useEffect(() => {
     try { screen.orientation?.lock?.('portrait').catch(() => {}) } catch {}
+  }, [])
+  useEffect(() => {
+    function stopSelect(e) {
+      const tag = e.target.tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return
+      e.preventDefault()
+    }
+    function stopGesture(e) { e.preventDefault() }
+    document.addEventListener('selectstart', stopSelect)
+    document.addEventListener('gesturestart', stopGesture)
+    return () => {
+      document.removeEventListener('selectstart', stopSelect)
+      document.removeEventListener('gesturestart', stopGesture)
+    }
   }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
 

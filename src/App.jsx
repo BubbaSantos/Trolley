@@ -12,11 +12,11 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.19.0'
+const VERSION = '2.19.1'
 const SNAP = 80
 const AUTO = 220
-const DEFAULT_CHECK_HOLD_MS = 1000
-const DEFAULT_UNCHECK_HOLD_MS = 1000
+const DEFAULT_CHECK_HOLD_MS = 500
+const DEFAULT_UNCHECK_HOLD_MS = 1500
 const HOLD_MIN_MS = 300
 const HOLD_MAX_MS = 3000
 const QUEUE_KEY = 'trolley_queue'

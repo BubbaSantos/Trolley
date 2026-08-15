@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.19.1'
+const VERSION = '2.19.2'
 const SNAP = 80
 const AUTO = 220
 const DEFAULT_CHECK_HOLD_MS = 500
@@ -1004,6 +1004,9 @@ export default function App() {
   useEffect(() => { localStorage.setItem('trolley_sort_by_category', String(sortByCategory)) }, [sortByCategory])
   useEffect(() => { document.documentElement.setAttribute('data-theme', theme); localStorage.setItem('trolley_theme', theme) }, [theme])
   useEffect(() => { const t = setTimeout(() => setShowVersion(false), 2000); return () => clearTimeout(t) }, [])
+  useEffect(() => {
+    try { screen.orientation?.lock?.('portrait').catch(() => {}) } catch {}
+  }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
 
   useEffect(() => {

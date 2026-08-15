@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.19.2'
+const VERSION = '2.19.3'
 const SNAP = 80
 const AUTO = 220
 const DEFAULT_CHECK_HOLD_MS = 500
@@ -745,23 +745,24 @@ function BottomSheet({ onClose, children, noSwipe }) {
     if (noSwipe) return
     const el = sheetRef.current
     if (!el) return
-    let startY = 0, startTime = 0, currentY = 0, engaged = false
+    let startY = 0, startTime = 0, currentY = 0, engaged = false, fromHandle = false
 
     function onStart(e) {
+      fromHandle = !!e.target.closest('.sheet-handle')
+      if (!fromHandle) return
       startY = e.touches[0].clientY; startTime = Date.now()
       currentY = 0; engaged = false; el.style.transition = 'none'
     }
     function onMove(e) {
+      if (!fromHandle) return
       const dy = e.touches[0].clientY - startY
       if (dy <= 0) { engaged = false; return }
-      const bodyEl = el.querySelector('.sheet-body')
-      if (!engaged && bodyEl && bodyEl.scrollTop > 0) return
       engaged = true; currentY = dy
       el.style.transform = `translateY(${dy}px)`
       e.preventDefault()
     }
     function onEnd() {
-      if (!engaged) { el.style.transition = ''; return }
+      if (!fromHandle || !engaged) { el.style.transition = ''; return }
       const velocity = currentY / (Date.now() - startTime)
       if (currentY > 100 || velocity > 0.4) {
         el.style.transition = 'transform 0.25s ease'

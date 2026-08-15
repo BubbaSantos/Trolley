@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.16.0'
+const VERSION = '2.17.0'
 const SNAP = 80
 const AUTO = 220
 const HOLD_MS = 1800

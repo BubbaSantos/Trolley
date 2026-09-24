@@ -332,16 +332,22 @@ header h1 {
 /* ---- Suggestions ---- */
 
 .suggestions {
-  position: absolute;
-  top: calc(100% + 4px);
-  left: 0;
-  right: 0;
+  margin-top: 4px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 0.75rem;
   overflow: hidden;
   z-index: 50;
   box-shadow: 0 8px 24px var(--shadow);
+}
+
+/* Inside the recipe editor the row has other siblings after it, so the
+   dropdown stays a floating overlay there instead of pushing them down. */
+.recipe-suggestions {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
 }
 
 .suggestion-item {

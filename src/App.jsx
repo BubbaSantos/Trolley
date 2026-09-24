@@ -12,7 +12,9 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.19.5'
+const VERSION = '2.20.0'
+// When the Supabase egress quota is expected to reset — shown in the offline-only banner.
+const SYNC_RESET_DATE = '8 October'
 const SNAP = 80
 const AUTO = 220
 const DEFAULT_CHECK_HOLD_MS = 500
@@ -201,6 +203,13 @@ function getRecipes(code) {
 }
 function saveRecipesFor(code, recipes) {
   try { localStorage.setItem(`trolley_recipes_${code}`, JSON.stringify(recipes)) } catch {}
+}
+
+function getCachedHistory(code) {
+  try { return JSON.parse(localStorage.getItem(`trolley_history_${code}`) || '[]') } catch { return [] }
+}
+function setCachedHistory(code, history) {
+  try { localStorage.setItem(`trolley_history_${code}`, JSON.stringify(history)) } catch {}
 }
 
 function getCustomCategories() {
@@ -788,7 +797,41 @@ function BottomSheet({ onClose, children, noSwipe }) {
   return <div ref={sheetRef} className={`sheet${noSwipe ? ' full-screen' : ''}`} onClick={e => e.stopPropagation()}>{children}</div>
 }
 
-const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY)
+// The Supabase project can be put into a restricted state (HTTP 402) when the
+// free-tier egress quota runs out. Every request fails in that state, so we track
+// it separately from navigator.onLine: writes still queue and the UI can say why.
+let syncBlocked = false
+const syncBlockedListeners = new Set()
+
+function setSyncBlocked(value) {
+  if (syncBlocked === value) return
+  syncBlocked = value
+  syncBlockedListeners.forEach(fn => fn(value))
+}
+
+function useSyncBlocked() {
+  const [blocked, setBlocked] = useState(syncBlocked)
+  useEffect(() => {
+    syncBlockedListeners.add(setBlocked)
+    setBlocked(syncBlocked)
+    return () => { syncBlockedListeners.delete(setBlocked) }
+  }, [])
+  return blocked
+}
+
+// True when we can actually reach the backend, not just when the device has a network.
+function canSync() { return navigator.onLine && !syncBlocked }
+
+async function trackedFetch(...args) {
+  const res = await fetch(...args)
+  if (res.status === 402) setSyncBlocked(true)
+  else if (res.ok) setSyncBlocked(false)
+  return res
+}
+
+const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, {
+  global: { fetch: trackedFetch },
+})
 
 async function flushQueue() {
   const q = getQueue(); if (!q.length) return
@@ -959,6 +1002,8 @@ export default function App() {
   const clientIdRef = useRef(crypto.randomUUID())
   const toastIdRef = useRef(0)
   const online = useOnlineStatus()
+  const syncOff = useSyncBlocked()
+  const [syncInfoOpen, setSyncInfoOpen] = useState(false)
   const prevOnlineRef = useRef(true)
 
   useEffect(() => { itemsRef.current = items }, [items])
@@ -1023,6 +1068,7 @@ export default function App() {
     }
   }, [])
   useEffect(() => { try { localStorage.setItem('trolley_history_order', JSON.stringify(historyOrder)) } catch {} }, [historyOrder])
+  useEffect(() => { if (listCode) setCachedHistory(listCode, history) }, [listCode, history])
 
   useEffect(() => {
     if (history.length === 0) return
@@ -1154,7 +1200,7 @@ export default function App() {
         ...prev.filter(h => h.name.toLowerCase() !== oldName.toLowerCase() && h.name.toLowerCase() !== newName.toLowerCase()),
         merged,
       ])
-      if (navigator.onLine) {
+      if (canSync()) {
         if (nameChanged) await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', oldName)
         await supabase.from('list_history').upsert(merged, { onConflict: 'list_code,name' })
       }
@@ -1220,7 +1266,7 @@ export default function App() {
       if (idx >= 0) next[idx] = newEntry; else next.push(newEntry)
       return next
     })
-    if (navigator.onLine) {
+    if (canSync()) {
       await supabase.from('list_history').upsert(newEntry, { onConflict: 'list_code,name' })
     }
   }
@@ -1244,7 +1290,7 @@ export default function App() {
       else next.push(entry)
       return next
     })
-    if (navigator.onLine) {
+    if (canSync()) {
       await supabase.from('list_history').upsert(entry, { onConflict: 'list_code,name' })
     }
   }
@@ -1256,6 +1302,10 @@ export default function App() {
     if (cached.length > 0) setItems(cached)
     const cachedRecipes = getRecipes(code)
     if (cachedRecipes.length > 0) setRecipes(cachedRecipes)
+    const cachedHistory = getCachedHistory(code)
+    setHistory(cachedHistory)
+    // Still attempt the load when the device has a network, even if sync looks blocked —
+    // a successful response is what clears the blocked flag again.
     if (!navigator.onLine) return
     await Promise.all([flushQueue(), flushRecipeQueue()])
     const [{ data: itemData }, { data: histData }, { data: recipeData }] = await Promise.all([
@@ -1369,7 +1419,7 @@ export default function App() {
   // always falls back to the offline queue instead of silently dropping the change —
   // navigator.onLine can report true with no real connectivity (e.g. wifi with no internet).
   async function remoteUpdateItem(id, data, fallbackData) {
-    if (navigator.onLine) {
+    if (canSync()) {
       try {
         let { error } = await supabase.from('list_items').update(data).eq('id', id)
         if (error && fallbackData && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
@@ -1384,7 +1434,7 @@ export default function App() {
   }
 
   async function remoteInsertItem(newItem) {
-    if (navigator.onLine) {
+    if (canSync()) {
       try {
         const { error } = await supabase.from('list_items').upsert(newItem, { onConflict: 'id' })
         if (error) {
@@ -1402,7 +1452,7 @@ export default function App() {
   }
 
   async function remoteDeleteItems(ids) {
-    if (navigator.onLine) {
+    if (canSync()) {
       try {
         const { error } = ids.length > 1
           ? await supabase.from('list_items').delete().in('id', ids)
@@ -1416,7 +1466,7 @@ export default function App() {
   }
 
   async function remoteUpsertRecipe(data) {
-    if (navigator.onLine) {
+    if (canSync()) {
       try {
         let { error } = await supabase.from('list_recipes').upsert(data, { onConflict: 'id' })
         if (error && (error.code === 'PGRST204' || error.message?.includes('does not exist'))) {
@@ -1431,7 +1481,7 @@ export default function App() {
   }
 
   async function remoteDeleteRecipe(id) {
-    if (navigator.onLine) {
+    if (canSync()) {
       try {
         const { error } = await supabase.from('list_recipes').delete().eq('id', id)
         if (error) throw error
@@ -1452,7 +1502,7 @@ export default function App() {
 
   async function createList() {
     const code = Math.random().toString(36).substring(2, 8).toUpperCase()
-    if (navigator.onLine) await supabase.from('lists').insert({ code })
+    if (canSync()) await supabase.from('lists').insert({ code })
     localStorage.setItem('trolley_code', code); listCodeRef.current = code; setListCode(code)
     await loadAndSubscribe(code)
     if (!userNameRef.current) setShowNamePrompt(true)
@@ -1653,7 +1703,7 @@ export default function App() {
     const item = itemsRef.current.find(i => i.id === id)
     if (item) {
       recordHistory(item)
-      if (userNameRef.current && navigator.onLine) {
+      if (userNameRef.current && canSync()) {
         const { name: itemDisplayName } = parseItemName(item.name)
         channelRef.current?.send({
           type: 'broadcast', event: 'item_deleted',
@@ -1717,13 +1767,13 @@ export default function App() {
   async function clearHistory() {
     setHistory([])
     closeSettings()
-    if (navigator.onLine) await supabase.from('list_history').delete().eq('list_code', listCode)
+    if (canSync()) await supabase.from('list_history').delete().eq('list_code', listCode)
   }
 
   async function resetAllCounts() {
     setHistory(prev => prev.map(h => ({ ...h, count: 0, last_used: null })))
     closeSettings()
-    if (navigator.onLine) {
+    if (canSync()) {
       await Promise.all(
         history.map(h => supabase.from('list_history').update({ count: 0, last_used: null }).eq('list_code', listCode).eq('name', h.name))
       )
@@ -1732,7 +1782,7 @@ export default function App() {
 
   async function deleteHistoryItem(name) {
     setHistory(prev => prev.filter(h => h.name !== name))
-    if (navigator.onLine) {
+    if (canSync()) {
       await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', name)
     }
   }
@@ -1743,7 +1793,7 @@ export default function App() {
     if (!existing) return
     const updated = { ...existing, count: 0, last_used: null }
     setHistory(prev => prev.map(h => h.name.toLowerCase() === cleanName.toLowerCase() ? updated : h))
-    if (navigator.onLine) await supabase.from('list_history').upsert(updated, { onConflict: 'list_code,name' })
+    if (canSync()) await supabase.from('list_history').upsert(updated, { onConflict: 'list_code,name' })
   }
 
   // --- Recipes ---
@@ -2063,7 +2113,7 @@ export default function App() {
         ...prev.filter(h => h.name.toLowerCase() !== oldBase.toLowerCase() && h.name.toLowerCase() !== newBase.toLowerCase()),
         merged,
       ])
-      if (navigator.onLine) {
+      if (canSync()) {
         if (existingOld) await supabase.from('list_history').delete().eq('list_code', listCode).eq('name', existingOld.name)
         await supabase.from('list_history').upsert(merged, { onConflict: 'list_code,name' })
       }
@@ -2198,6 +2248,29 @@ export default function App() {
           <button onClick={openSettings} className="icon-btn" aria-label="Settings">⚙️</button>
         </div>
       </header>
+
+      {syncOff && (
+        <div className="sync-banner">
+          <button
+            type="button"
+            className="sync-banner-btn"
+            onClick={() => setSyncInfoOpen(o => !o)}
+            aria-expanded={syncInfoOpen}
+          >
+            <span className="sync-banner-dot" />
+            Temporarily offline only
+            <span className="sync-banner-mark">i</span>
+          </button>
+          {syncInfoOpen && (
+            <p className="sync-banner-detail">
+              Trolley has used up its cloud quota, so shared lists, syncing and live updates are
+              paused. Everything still works on this device — your list, history and recipes are
+              saved here, and anything you change is queued up. Sync should come back after{' '}
+              {SYNC_RESET_DATE}, when the quota resets.
+            </p>
+          )}
+        </div>
+      )}
 
       {tab === 'list' ? (
         <>

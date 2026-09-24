@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.20.2'
+const VERSION = '2.20.3'
 // When the Supabase egress quota is expected to reset — shown in the offline-only banner.
 const SYNC_RESET_DATE = '8 October'
 const SNAP = 80

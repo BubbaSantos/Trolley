@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.20.0'
+const VERSION = '2.20.1'
 // When the Supabase egress quota is expected to reset — shown in the offline-only banner.
 const SYNC_RESET_DATE = '8 October'
 const SNAP = 80
@@ -2245,31 +2245,32 @@ export default function App() {
             </div>
           )}
           {!online && <span className="offline-badge">Offline</span>}
+          {syncOff && (
+            <span className="sync-badge-wrap">
+              <button
+                type="button"
+                className="sync-badge"
+                onClick={() => setSyncInfoOpen(o => !o)}
+                aria-expanded={syncInfoOpen}
+              >
+                Sync paused
+              </button>
+              {syncInfoOpen && (
+                <p className="sync-badge-tooltip">
+                  Trolley has used up its cloud quota, so shared lists, syncing and live updates
+                  are paused. Everything still works on this device — your list, history and
+                  recipes are saved here, and anything you change is queued up. Sync should come
+                  back after {SYNC_RESET_DATE}, when the quota resets.
+                </p>
+              )}
+            </span>
+          )}
           <button onClick={openSettings} className="icon-btn" aria-label="Settings">⚙️</button>
         </div>
       </header>
 
-      {syncOff && (
-        <div className="sync-banner">
-          <button
-            type="button"
-            className="sync-banner-btn"
-            onClick={() => setSyncInfoOpen(o => !o)}
-            aria-expanded={syncInfoOpen}
-          >
-            <span className="sync-banner-dot" />
-            Temporarily offline only
-            <span className="sync-banner-mark">i</span>
-          </button>
-          {syncInfoOpen && (
-            <p className="sync-banner-detail">
-              Trolley has used up its cloud quota, so shared lists, syncing and live updates are
-              paused. Everything still works on this device — your list, history and recipes are
-              saved here, and anything you change is queued up. Sync should come back after{' '}
-              {SYNC_RESET_DATE}, when the quota resets.
-            </p>
-          )}
-        </div>
+      {syncOff && syncInfoOpen && (
+        <div onClick={() => setSyncInfoOpen(false)} className="sync-badge-backdrop" />
       )}
 
       {tab === 'list' ? (

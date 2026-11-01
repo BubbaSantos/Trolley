@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.21.0'
+const VERSION = '2.21.1'
 // When the Supabase egress quota is expected to reset — shown in the offline-only banner.
 const SYNC_RESET_DATE = '8 October'
 const SNAP = 80
@@ -445,8 +445,7 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
                   clearTimeout(confirmTimerRef.current)
                   if (confirming) {
                     setConfirming(false)
-                    haptic([10, 30, 10])
-                    onToggle(item.id, false)
+                    onStrikeTap(item.id)
                   } else {
                     haptic(8)
                     setConfirming(true)
@@ -3093,7 +3092,7 @@ export default function App() {
                       <span className="settings-row-label">Confirm check-off</span>
                       <input type="checkbox" checked={confirmCheck} onChange={e => changeConfirmCheck(e.target.checked)} />
                     </label>
-                    <p className="hold-slider-hint">Tap the circle twice to check an item off, so a single stray tap does nothing</p>
+                    <p className="hold-slider-hint">Tap the circle twice to start checking an item off, so a single stray tap does nothing. The ring then fills and you can tap the circle again to cancel</p>
                   </div>
                   {holdToCheck && <div className="hold-slider-block">
                     <div className="hold-slider-header">

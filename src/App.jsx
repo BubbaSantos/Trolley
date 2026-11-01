@@ -12,7 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import products from './data/products.json'
 import './App.css'
 
-const VERSION = '2.20.3'
+const VERSION = '2.21.0'
 // When the Supabase egress quota is expected to reset — shown in the offline-only banner.
 const SYNC_RESET_DATE = '8 October'
 const SNAP = 80
@@ -325,18 +325,21 @@ function useOnlineStatus() {
   return online
 }
 
-function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, isExiting, isStriking, checkHoldMs, uncheckHoldMs }) {
+function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, isExiting, isStriking, checkHoldMs, uncheckHoldMs, holdToCheck, confirmCheck }) {
   const holdMs = item.checked ? uncheckHoldMs : checkHoldMs
   useNowTick()
   const [tx, _setTx] = useState(0)
   const [animate, setAnimate] = useState(false)
   const [isHolding, setIsHolding] = useState(false)
+  const [confirming, setConfirming] = useState(false)
+  const confirmTimerRef = useRef(null)
   const txRef = useRef(0)
   const rowRef = useRef(null)
   const onDeleteRef = useRef(onDelete)
   const holdTimerRef = useRef(null)
   const holdFiredRef = useRef(false)
   useEffect(() => { onDeleteRef.current = onDelete }, [onDelete])
+  useEffect(() => () => clearTimeout(confirmTimerRef.current), [])
 
   function setTx(v) { txRef.current = v; _setTx(v) }
 
@@ -347,6 +350,7 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
 
     function startHold() {
       if (isStriking) return
+      if (!item.checked && !holdToCheck) return
       clearTimeout(holdTimerRef.current)
       holdFiredRef.current = false
       setIsHolding(true)
@@ -405,7 +409,7 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
       el.removeEventListener('mouseleave', onMouseLeave)
       clearTimeout(holdTimerRef.current)
     }
-  }, [item.id, item.checked, isStriking, holdMs])
+  }, [item.id, item.checked, isStriking, holdMs, holdToCheck])
 
   function handleClick() {
     if (holdFiredRef.current) { holdFiredRef.current = false; return }
@@ -432,11 +436,24 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
         >
           <div className="check-btn-wrap">
             <button
-              className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}`}
+              className={`check-btn${item.checked || isStriking ? ' checked-btn' : ''}${confirming ? ' confirming-btn' : ''}`}
               onClick={e => {
                 e.stopPropagation()
                 if (holdFiredRef.current) { holdFiredRef.current = false; return }
                 if (item.checked) return
+                if (confirmCheck && !isStriking) {
+                  clearTimeout(confirmTimerRef.current)
+                  if (confirming) {
+                    setConfirming(false)
+                    haptic([10, 30, 10])
+                    onToggle(item.id, false)
+                  } else {
+                    haptic(8)
+                    setConfirming(true)
+                    confirmTimerRef.current = setTimeout(() => setConfirming(false), 3000)
+                  }
+                  return
+                }
                 onStrikeTap(item.id)
               }}
             >
@@ -457,7 +474,9 @@ function SwipeItem({ item, onToggle, onStrikeTap, onDelete, onInfo, isEntering, 
             <span className="item-name-line">
               {displayName}{displayQty && <span className="item-qty">{displayQty}</span>}
             </span>
-            {isHolding
+            {confirming && !item.checked
+              ? <span className="tap-hint hold-hint-check">tap circle again to check off</span>
+              : isHolding
               ? <span className={`tap-hint hold-hint${item.checked ? '' : ' hold-hint-check'}`}>{item.checked ? 'hold to return to list…' : 'hold to check off…'}</span>
               : isStriking
               ? <span className="tap-hint">tap circle to cancel</span>
@@ -971,6 +990,11 @@ export default function App() {
     const saved = parseInt(localStorage.getItem('trolley_hold_uncheck_ms'), 10)
     return Number.isFinite(saved) ? saved : DEFAULT_UNCHECK_HOLD_MS
   })
+
+  const [holdToCheck, setHoldToCheck] = useState(() => localStorage.getItem('trolley_hold_to_check') !== '0')
+  const [confirmCheck, setConfirmCheck] = useState(() => localStorage.getItem('trolley_confirm_check') === '1')
+  function changeHoldToCheck(v) { setHoldToCheck(v); localStorage.setItem('trolley_hold_to_check', v ? '1' : '0') }
+  function changeConfirmCheck(v) { setConfirmCheck(v); localStorage.setItem('trolley_confirm_check', v ? '1' : '0') }
 
   function changeCheckHoldMs(ms) {
     setCheckHoldMs(ms)
@@ -2184,6 +2208,7 @@ export default function App() {
         isEntering={enteringIds.has(item.id)} isExiting={exitingIds.has(item.id)}
         isStriking={strikingIds.has(item.id)}
         checkHoldMs={checkHoldMs} uncheckHoldMs={uncheckHoldMs}
+        holdToCheck={holdToCheck} confirmCheck={confirmCheck}
       />
     )
   }
@@ -2867,7 +2892,7 @@ export default function App() {
                   <button className="settings-nav-item" onClick={() => setSettingsView('hold')}>
                     <div className="settings-nav-left">
                       <span className="settings-nav-title">Press &amp; Hold</span>
-                      <span className="settings-nav-sub">{(checkHoldMs / 1000).toFixed(1)}s check · {(uncheckHoldMs / 1000).toFixed(1)}s return</span>
+                      <span className="settings-nav-sub">{holdToCheck ? `${(checkHoldMs / 1000).toFixed(1)}s check` : 'hold-check off'} · {(uncheckHoldMs / 1000).toFixed(1)}s return</span>
                     </div>
                     <span className="settings-nav-arrow">›</span>
                   </button>
@@ -3057,6 +3082,20 @@ export default function App() {
               {settingsView === 'hold' && (
                 <>
                   <div className="hold-slider-block">
+                    <label className="hold-slider-header">
+                      <span className="settings-row-label">Hold to check off</span>
+                      <input type="checkbox" checked={holdToCheck} onChange={e => changeHoldToCheck(e.target.checked)} />
+                    </label>
+                    <p className="hold-slider-hint">Turn off to stop holding an item from checking it off</p>
+                  </div>
+                  <div className="hold-slider-block">
+                    <label className="hold-slider-header">
+                      <span className="settings-row-label">Confirm check-off</span>
+                      <input type="checkbox" checked={confirmCheck} onChange={e => changeConfirmCheck(e.target.checked)} />
+                    </label>
+                    <p className="hold-slider-hint">Tap the circle twice to check an item off, so a single stray tap does nothing</p>
+                  </div>
+                  {holdToCheck && <div className="hold-slider-block">
                     <div className="hold-slider-header">
                       <span className="settings-row-label">Check off</span>
                       <span className="hold-slider-value">{(checkHoldMs / 1000).toFixed(1)}s</span>
@@ -3068,7 +3107,7 @@ export default function App() {
                       onChange={e => changeCheckHoldMs(parseInt(e.target.value, 10))}
                     />
                     <p className="hold-slider-hint">How long you hold an unchecked item to check it off</p>
-                  </div>
+                  </div>}
                   <div className="hold-slider-block">
                     <div className="hold-slider-header">
                       <span className="settings-row-label">Return to list</span>

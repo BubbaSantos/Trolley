@@ -2660,3 +2660,5 @@ header h1 {
   inset: 0;
   z-index: 10;
 }
+
+.check-btn.confirming-btn { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); animation: fade-in 0.15s ease; }
